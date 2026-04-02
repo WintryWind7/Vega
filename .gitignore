@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
+
+# 数据库文件（按需取消注释）
+# *.db
+
+# AI Agent 配置目录
+.claude/
+.cursor/
+.copilot/
+.aider*
+.continue/
+.windsurf/
+.roo/
+.cline/
+.gemini/
+.augment/
