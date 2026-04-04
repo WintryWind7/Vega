@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vega"
+version = "0.1.0"
+description = "专为 Agent 设计的外置个人知识库"
+requires-python = ">=3.8"
+
+[project.scripts]
+vega = "vega.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

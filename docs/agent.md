@@ -24,7 +24,7 @@ data/
 
 ## 操作要点
 
-- 每个知识条目是一个 Markdown 文件，包含 YAML frontmatter（title、description、tags）和正文
-- 通过 CLI 命令进行检索、读取、写入、删除操作
-- 写入和删除时索引会自动更新
+- 每个知识条目是一个 Markdown 文件，包含 YAML frontmatter（description、tags）和正文，标题从文件名推断
+- 通过 CLI 命令进行操作，首次使用需 `vega init --data <路径>` 初始化，路径保存在 `~/.vega/settings.json`
+- 写入和删除时索引会自动更新，写入已有条目时为增量修改
 - 人可以直接编辑 Markdown 文件，不影响使用
