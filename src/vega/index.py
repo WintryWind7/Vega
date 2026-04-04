@@ -76,14 +76,19 @@ def rebuild(data_dir: str) -> dict:
     return index
 
 
-def search(data_dir: str, query: str) -> list:
-    """搜索索引，支持多关键词（空格分隔），按 title/tags/description 匹配。"""
+def search(data_dir: str, query: str, limit: int = 50) -> list:
+    """搜索索引，广泛召回，让 AI 做最终筛选。
+
+    支持逗号分隔多关键词，按 path/title/tags/description 匹配。
+    返回 score > 0 的结果，按相关度降序排列，最多 limit 条。
+    """
     index = load_index(data_dir)
     keywords = [kw.strip().lower() for kw in query.split(",") if kw.strip()]
     results = []
 
     for entry in index["entries"]:
         score = 0
+        path = entry["path"].lower()
         title = entry["title"].lower()
         desc = entry["description"].lower()
         tags = [t.lower() for t in entry.get("tags", [])]
@@ -96,9 +101,11 @@ def search(data_dir: str, query: str) -> list:
                     score += 2
             if kw in desc:
                 score += 1
+            if kw in path:
+                score += 1
 
         if score > 0:
             results.append({**entry, "score": score})
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    return results
+    return results[:limit]

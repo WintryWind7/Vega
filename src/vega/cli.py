@@ -7,6 +7,7 @@ import sys
 
 from .storage import read_entry, write_entry, delete_entry
 from .index import load_index, add_or_update, remove, rebuild, search
+from .check import run as check_run
 
 
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".vega")
@@ -68,9 +69,9 @@ def cmd_init(args):
 
 
 def cmd_search(args):
-    """搜索索引。"""
+    """搜索索引，广泛召回。"""
     data_dir = _resolve_data_dir(args)
-    results = search(data_dir, args.query)
+    results = search(data_dir, args.query, limit=args.limit)
     print(json.dumps({"results": results}, ensure_ascii=False, indent=2))
 
 
@@ -168,6 +169,12 @@ def cmd_list(args):
     print(json.dumps({"entries": entries}, ensure_ascii=False, indent=2))
 
 
+def cmd_check(args):
+    """知识库自检。"""
+    data_dir = _resolve_data_dir(args)
+    print(check_run(data_dir))
+
+
 def main():
     parser = argparse.ArgumentParser(prog="vega", description="Vega 知识库 CLI")
 
@@ -183,6 +190,7 @@ def main():
     # search
     p = sub.add_parser("search", parents=[common], help="搜索索引")
     p.add_argument("query", help="搜索关键词，逗号分隔多关键词")
+    p.add_argument("--limit", "-n", type=int, default=50, help="最大返回条数")
 
     # read
     p = sub.add_parser("read", parents=[common], help="读取条目")
@@ -205,6 +213,9 @@ def main():
     p = sub.add_parser("list", parents=[common], help="列出条目")
     p.add_argument("prefix", nargs="?", default="", help="路径前缀过滤")
 
+    # check
+    sub.add_parser("check", parents=[common], help="知识库自检")
+
     args = parser.parse_args()
     if args.command is None:
         parser.print_help()
@@ -218,6 +229,7 @@ def main():
         "delete": cmd_delete,
         "rebuild": cmd_rebuild,
         "list": cmd_list,
+        "check": cmd_check,
     }[args.command](args)
 
 
