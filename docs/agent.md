@@ -28,5 +28,5 @@ data/
 - 每个知识条目是一个 Markdown 文件，包含 YAML frontmatter（description、tags）和正文，标题从文件名推断
 - AI 通过 bash 调用 CLI 命令操作，首次使用需 `vega init --data <路径>` 初始化，路径保存在 `~/.vega/settings.json`
 - write（创建）、edit（编辑）、delete（删除）三个命令会自动更新索引
-- write 创建新条目（description 和 tags 必填），edit 增量修改已有条目，职责分离
+- write 创建新条目（description 和 tags 必填，正文从 stdin 读取），edit 用 --old/--new 精确字符串替换已有条目，职责分离
 - 人可以直接编辑 Markdown 文件，不影响使用

@@ -22,26 +22,24 @@ AI 通过 bash 工具执行 `vega` 命令，不需要封装为 MCP tool。接入
 
 ## 命令
 
-所有命令输出 JSON 格式（check 除外，输出可读文本）。
+| 命令 | 输出格式 | 用途 | 索引同步 |
+|---|---|---|---|
+| `vega init --data <路径>` | JSON | 初始化知识库 | — |
+| `vega search <关键词>` | 可读列表 | 搜索索引，逗号分隔多关键词，广泛召回 | 查索引 |
+| `vega read <路径>` | md 原文 | 读取完整条目（含 frontmatter 和正文） | — |
+| `vega write <路径>` | JSON | 创建新条目，description 和 tags 必填，正文从 stdin 读取 | 自动更新 |
+| `vega edit <路径>` | JSON | 编辑已有条目，--old/--new 精确字符串替换 | 自动更新 |
+| `vega delete <路径>` | JSON | 删除条目 | 自动更新 |
+| `vega check` | 可读文本 | 知识库自检（格式、键统计、索引一致性） | — |
 
-| 命令 | 用途 | 索引同步 |
-|---|---|---|
-| `vega init --data <路径>` | 初始化知识库 | — |
-| `vega search <关键词>` | 搜索索引，逗号分隔多关键词，广泛召回 | 查索引 |
-| `vega read <路径>` | 读取完整条目 | — |
-| `vega write <路径>` | 创建新条目，description 和 tags 必填 | 自动更新 + git commit |
-| `vega edit <路径>` | 编辑已有条目，增量修改 | 自动更新 + git commit |
-| `vega delete <路径>` | 删除条目 | 自动更新 + git commit |
-| `vega check` | 知识库自检（格式、键统计、索引一致性） | — |
-
-write、edit、delete 三个写操作会自动更新索引并触发 git commit，AI 无需手动维护索引。
+write、edit、delete 三个写操作会自动更新索引，AI 无需手动维护索引。
 
 ## 接口设计原则
 
-- 输出 JSON 格式（check 除外，输出可读文本）
+- 写操作（write/edit/delete）输出 JSON，read 输出 md 原文，search 和 check 输出可读文本
 - 命令简洁直观，AI 看命令名就能理解用途
 - write 创建新条目，edit 编辑已有条目，职责分离
-- edit 为增量修改：只改传入的字段，正文追加而非覆盖
+- edit 为精确字符串替换（--old/--new），AI 判断替换什么，灵活可控
 - 新建条目时 description 和 tags 必填
 - search 广泛召回，返回最多 50 条候选结果，精确筛选交给 AI
 - 不封装为 MCP tool，AI 统一通过 bash 调用

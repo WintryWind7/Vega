@@ -75,12 +75,15 @@ def cmd_search(args):
     if not results:
         print("无匹配结果")
         return
+    print(f"vega data path: {data_dir}")
+    print(f"查询关键字: {args.query}")
+    print()
     for i, entry in enumerate(results, 1):
         print(f"{i}. {entry['path']}: {entry['description']}")
 
 
 def cmd_read(args):
-    """读取条目。"""
+    """读取条目，直接输出 md 原文。"""
     data_dir = _resolve_data_dir(args)
     path = os.path.join(data_dir, args.path)
 
@@ -88,9 +91,8 @@ def cmd_read(args):
         print(json.dumps({"error": f"文件不存在: {args.path}"}, ensure_ascii=False))
         sys.exit(1)
 
-    result = read_entry(path)
-    result["path"] = args.path
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    with open(path, "r", encoding="utf-8") as f:
+        print(f.read())
 
 
 def cmd_write(args):
@@ -205,6 +207,14 @@ def cmd_check(args):
 
 
 def main():
+    # Windows 默认编码可能不是 UTF-8，强制统一
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(prog="vega", description="Vega 知识库 CLI")
 
     # 公共参数，所有子命令共享
