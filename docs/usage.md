@@ -64,19 +64,24 @@ vega read user/editor-preferences.md
 创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。自动更新索引。
 
 ```bash
-echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.md -d "Python 异步编程" -t "Python,async,并发"
+echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发"
 ```
 
 ### vega edit \<路径\>
 
-编辑已有条目。增量修改：只更新传入的字段，正文追加而非覆盖。自动更新索引。
+编辑已有条目。精确字符串替换：找到原文本，替换为新文本。自动更新索引。
 
 ```bash
 # 改 description
-vega edit projects/Vega/async.md -d "更新后的描述"
+vega edit projects/Vega/async.md --old "旧描述" --new "新描述"
 
-# 追加正文
-echo "补充内容" | vega edit projects/Vega/async.md
+# 追加正文（把最后一行作为锚点）
+vega edit projects/Vega/async.md --old "最后一段内容" --new "最后一段内容
+
+补充的新内容"
+
+# 批量替换
+vega edit projects/Vega/async.md --old "旧词" --new "新词" --replace-all
 ```
 
 ### vega delete \<路径\>

@@ -72,7 +72,11 @@ def cmd_search(args):
     """搜索索引，广泛召回。"""
     data_dir = _resolve_data_dir(args)
     results = search(data_dir, args.query, limit=args.limit)
-    print(json.dumps({"results": results}, ensure_ascii=False, indent=2))
+    if not results:
+        print("无匹配结果")
+        return
+    for i, entry in enumerate(results, 1):
+        print(f"{i}. {entry['path']}: {entry['description']}")
 
 
 def cmd_read(args):
@@ -90,45 +94,70 @@ def cmd_read(args):
 
 
 def cmd_write(args):
-    """写入条目，支持增量修改。
-
-    新建时 description 和 tags 必填。
-    更新时只修改传入的参数，未传入的保留原值，正文追加。
-    """
+    """创建新条目，description 和 tags 必填，正文从 stdin 读取。"""
     data_dir = _resolve_data_dir(args)
     full_path = os.path.join(data_dir, args.path)
     rel_path = args.path.replace("\\", "/")
-    exists = os.path.exists(full_path)
 
-    if exists:
-        existing = read_entry(full_path)
-        meta = dict(existing["meta"])
-        content = existing["content"]
+    if os.path.exists(full_path):
+        print(json.dumps({"error": f"条目已存在: {args.path}，请使用 vega edit 修改"}, ensure_ascii=False))
+        sys.exit(1)
 
-        if args.description:
-            meta["description"] = args.description
-        if args.tags:
-            meta["tags"] = [t.strip() for t in args.tags.split(",")]
-
-        stdin_content = sys.stdin.read()
-        if stdin_content:
-            content = content.rstrip("\n") + "\n\n" + stdin_content
-    else:
-        if not args.description:
-            print(json.dumps({"error": "新建条目必须提供 --description"}, ensure_ascii=False))
-            sys.exit(1)
-        if not args.tags:
-            print(json.dumps({"error": "新建条目必须提供 --tags"}, ensure_ascii=False))
-            sys.exit(1)
-
-        meta = {
-            "description": args.description,
-            "tags": [t.strip() for t in args.tags.split(",")],
-        }
-        content = sys.stdin.read()
+    meta = {
+        "description": args.description,
+        "tags": [t.strip() for t in args.tags.split(",")],
+    }
+    content = sys.stdin.read()
 
     write_entry(full_path, meta, content)
     add_or_update(data_dir, rel_path, meta)
+
+    print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
+
+
+def cmd_edit(args):
+    """编辑已有条目，精确字符串替换。"""
+    data_dir = _resolve_data_dir(args)
+    full_path = os.path.join(data_dir, args.path)
+    rel_path = args.path.replace("\\", "/")
+
+    if not os.path.exists(full_path):
+        print(json.dumps({"error": f"条目不存在: {args.path}，请使用 vega write 创建"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if not args.old or not args.new:
+        print(json.dumps({"error": "edit 必须提供 --old 和 --new，且不能为空"}, ensure_ascii=False))
+        sys.exit(1)
+
+    with open(full_path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    old = args.old
+    new = args.new
+
+    if old == new:
+        print(json.dumps({"error": "--old 和 --new 不能相同"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if old not in text:
+        print(json.dumps({"error": f"未找到要替换的文本"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if not args.replace_all and text.count(old) > 1:
+        print(json.dumps({"error": f"匹配到 {text.count(old)} 处，请提供更精确的文本或使用 --replace-all"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if args.replace_all:
+        text = text.replace(old, new)
+    else:
+        text = text.replace(old, new, 1)
+
+    with open(full_path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    # 重新解析 frontmatter 更新索引
+    result = read_entry(full_path)
+    add_or_update(data_dir, rel_path, result["meta"])
 
     print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
 
@@ -197,10 +226,17 @@ def main():
     p.add_argument("path", help="条目路径（相对于 data/）")
 
     # write
-    p = sub.add_parser("write", parents=[common], help="写入条目，正文从 stdin 读取")
+    p = sub.add_parser("write", parents=[common], help="创建新条目，正文从 stdin 读取")
     p.add_argument("path", help="条目路径（相对于 data/）")
-    p.add_argument("--description", "-d", help="条目描述")
-    p.add_argument("--tags", "-t", help="标签，逗号分隔")
+    p.add_argument("--description", required=True, help="条目描述（必填）")
+    p.add_argument("--tags", required=True, help="标签，逗号分隔（必填）")
+
+    # edit
+    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换")
+    p.add_argument("path", help="条目路径（相对于 data/）")
+    p.add_argument("--old", required=True, help="要替换的原文本")
+    p.add_argument("--new", required=True, help="替换后的新文本")
+    p.add_argument("--replace-all", action="store_true", help="替换所有匹配项")
 
     # delete
     p = sub.add_parser("delete", parents=[common], help="删除条目")
@@ -226,6 +262,7 @@ def main():
         "search": cmd_search,
         "read": cmd_read,
         "write": cmd_write,
+        "edit": cmd_edit,
         "delete": cmd_delete,
         "rebuild": cmd_rebuild,
         "list": cmd_list,
