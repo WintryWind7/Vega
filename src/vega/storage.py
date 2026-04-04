@@ -11,10 +11,11 @@ def read_entry(path: str) -> dict:
 
 
 def write_entry(path: str, meta: dict, content: str) -> None:
-    """写入条目，自动创建父目录。"""
+    """写入条目，自动创建父目录。先组装内容再写文件，避免残留空文件。"""
+    text = dump(meta, content)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(dump(meta, content))
+        f.write(text)
 
 
 def delete_entry(path: str) -> None:
