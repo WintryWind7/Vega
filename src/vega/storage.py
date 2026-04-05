@@ -30,11 +30,11 @@ def delete_entry(path: str) -> None:
 
 
 def list_entries(data_dir: str) -> list:
-    """列出 data_dir 下所有 .md 文件的相对路径。"""
+    """列出 data_dir 下所有 .md 文件的相对路径，排除 _index.md。"""
     entries = []
     for root, _dirs, files in os.walk(data_dir):
         for f in files:
-            if f.endswith(".md"):
+            if f.endswith(".md") and f != "_index.md":
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, data_dir)
                 entries.append(rel_path.replace("\\", "/"))

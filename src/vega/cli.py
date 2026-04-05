@@ -6,6 +6,7 @@ import os
 import sys
 
 from .storage import read_entry, write_entry, delete_entry
+from .parser import parse
 from .index import load_index, add_or_update, remove, rebuild, search
 from .check import run as check_run
 
@@ -71,6 +72,63 @@ def cmd_init(args):
 def cmd_search(args):
     """搜索索引，广泛召回。"""
     data_dir = _resolve_data_dir(args)
+
+    if args.project:
+        # 项目级搜索：扫描 projects/*/_index.md
+        keywords = [kw.strip().lower() for kw in args.query.split(",") if kw.strip()]
+        projects_dir = os.path.join(data_dir, "projects")
+        results = []
+
+        if os.path.isdir(projects_dir):
+            for name in os.listdir(projects_dir):
+                index_path = os.path.join(projects_dir, name, "_index.md")
+                if not os.path.isfile(index_path):
+                    continue
+                try:
+                    with open(index_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    result = parse(content)
+                    meta = result["meta"]
+                    proj_name = meta.get("name", name).lower()
+                    proj_remote = meta.get("remote", "").lower()
+                    proj_desc = meta.get("description", "").lower()
+
+                    score = 0
+                    for kw in keywords:
+                        if kw in proj_name:
+                            score += 3
+                        if kw in proj_remote:
+                            score += 2
+                        if kw in proj_desc:
+                            score += 1
+
+                    if score > 0:
+                        results.append({
+                            "name": meta.get("name", name),
+                            "remote": meta.get("remote", ""),
+                            "description": meta.get("description", ""),
+                            "path": f"projects/{name}/",
+                            "score": score,
+                        })
+                except Exception:
+                    continue
+
+        if not results:
+            print("无匹配结果")
+            return
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+        print(f"vega data path: {data_dir}")
+        print(f"查询关键字: {args.query}")
+        print()
+        for i, proj in enumerate(results[:args.limit], 1):
+            line = f"{i}. {proj['path']}"
+            if proj["description"]:
+                line += f": {proj['description']}"
+            print(line)
+        return
+
+    # 条目级搜索（原有逻辑）
     results = search(data_dir, args.query, limit=args.limit)
     if not results:
         print("无匹配结果")
@@ -111,10 +169,45 @@ def cmd_write(args):
     }
     content = sys.stdin.read()
 
+    # 检测是否为新项目目录，自动创建 _index.md
+    new_project = False
+    if rel_path.startswith("projects/"):
+        parts = rel_path.split("/")
+        if len(parts) >= 2:
+            project_dir = os.path.join(data_dir, "projects", parts[1])
+            index_file = os.path.join(project_dir, "_index.md")
+            if not os.path.exists(project_dir):
+                new_project = True
+            elif not os.path.exists(index_file):
+                new_project = True
+
+            if new_project:
+                project_name = parts[1]
+                index_content = (
+                    f"---\n"
+                    f"name: {project_name}\n"
+                    f"remote:\n"
+                    f"description:\n"
+                    f"---\n\n"
+                    f"# {project_name}\n"
+                )
+                os.makedirs(project_dir, exist_ok=True)
+                with open(index_file, "w", encoding="utf-8") as f:
+                    f.write(index_content)
+
     write_entry(full_path, meta, content)
     add_or_update(data_dir, rel_path, meta)
 
-    print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
+    if new_project:
+        project_name = rel_path.split("/")[1]
+        print(json.dumps({
+            "status": "ok",
+            "path": args.path,
+            "new_project": project_name,
+            "message": f"新项目 {project_name}，已自动创建 _index.md，建议使用 vega edit 补充 remote 和 description",
+        }, ensure_ascii=False))
+    else:
+        print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
 
 
 def cmd_edit(args):
@@ -223,49 +316,66 @@ def main():
 
     sub = parser.add_subparsers(dest="command")
 
+    # help
+    sub.add_parser("help", help="显示帮助信息")
+
     # init
-    sub.add_parser("init", parents=[common], help="初始化知识库")
+    sub.add_parser("init", parents=[common], help="初始化知识库",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+初始化 Vega 知识库。
+
+必须指定 --data <路径>，Vega 会在该路径下创建 projects/、user/ 目录和 index.json 索引文件。
+配置信息保存在 ~/.vega/settings.json 中，后续所有命令自动读取，无需再指定。
+
+如果你是 AI:
+  请务必向用户确认 data 目录路径，不要自行决定。
+
+示例:
+  vega init --data ~/vega-data
+  vega init --data "D:/Vega/data" """)
 
     # search
-    p = sub.add_parser("search", parents=[common], help="搜索索引")
+    p = sub.add_parser("search", parents=[common], help="搜索索引", description="搜索知识库索引。逗号分隔多关键词，广泛召回，评分降序排列。输出可读列表，路径可直接传给 vega read")
     p.add_argument("query", help="搜索关键词，逗号分隔多关键词")
     p.add_argument("--limit", "-n", type=int, default=50, help="最大返回条数")
+    p.add_argument("--project", action="store_true", help="搜索项目而非条目，匹配项目名、remote、description")
 
     # read
-    p = sub.add_parser("read", parents=[common], help="读取条目")
+    p = sub.add_parser("read", parents=[common], help="读取条目", description="读取条目的完整内容，直接输出 md 原文（含 frontmatter 和正文）")
     p.add_argument("path", help="条目路径（相对于 data/）")
 
     # write
-    p = sub.add_parser("write", parents=[common], help="创建新条目，正文从 stdin 读取")
+    p = sub.add_parser("write", parents=[common], help="创建新条目，正文从 stdin 读取", description="创建新条目。--description 和 --tags 必填，正文通过 stdin 传入，例如: printf '内容' | vega write path --description '描述' --tags '标签'")
     p.add_argument("path", help="条目路径（相对于 data/）")
     p.add_argument("--description", required=True, help="条目描述（必填）")
     p.add_argument("--tags", required=True, help="标签，逗号分隔（必填）")
 
     # edit
-    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换")
+    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换", description="编辑已有条目，用 --old 和 --new 进行精确字符串替换。匹配多处时需提供更精确的文本或使用 --replace-all")
     p.add_argument("path", help="条目路径（相对于 data/）")
     p.add_argument("--old", required=True, help="要替换的原文本")
     p.add_argument("--new", required=True, help="替换后的新文本")
     p.add_argument("--replace-all", action="store_true", help="替换所有匹配项")
 
     # delete
-    p = sub.add_parser("delete", parents=[common], help="删除条目")
+    p = sub.add_parser("delete", parents=[common], help="删除条目", description="删除指定条目，同时从索引中移除")
     p.add_argument("path", help="条目路径（相对于 data/）")
 
     # rebuild
-    sub.add_parser("rebuild", parents=[common], help="重建索引")
+    sub.add_parser("rebuild", parents=[common], help="重建索引", description="全量重建索引，扫描 data/ 下所有 .md 文件")
 
     # list
-    p = sub.add_parser("list", parents=[common], help="列出条目")
+    p = sub.add_parser("list", parents=[common], help="列出条目", description="列出索引中所有条目，可按路径前缀过滤")
     p.add_argument("prefix", nargs="?", default="", help="路径前缀过滤")
 
     # check
-    sub.add_parser("check", parents=[common], help="知识库自检")
+    sub.add_parser("check", parents=[common], help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性、索引与文件同步")
 
     args = parser.parse_args()
-    if args.command is None:
+    if args.command is None or args.command == "help":
         parser.print_help()
-        sys.exit(1)
+        sys.exit(0)
 
     {
         "init": cmd_init,
