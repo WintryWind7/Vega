@@ -21,8 +21,8 @@
 
 通过 bash 执行以下命令（路径均为相对于 data/ 的相对路径）：
 
-- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词。返回可读列表，前两行是 data 路径和查询关键字，之后是 `序号. 路径: 描述`。路径可直接传给 `vega read`。无匹配时返回 `无匹配结果`
-- `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description。返回项目级结果
+- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词。结果中的路径可直接传给 `vega read`
+- `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
 - `vega read <路径>` — 读取完整条目，直接输出 md 原文（含 frontmatter 和正文）。路径即 search 结果中的路径
 - `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取（用 `printf "正文" | vega write ...`）。写入新项目时自动创建 `_index.md`
 - `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。可加 --replace-all 替换所有匹配

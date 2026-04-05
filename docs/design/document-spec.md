@@ -4,7 +4,6 @@
 
 ```
 data/
-  index.json           # 条目索引（自动维护）
   projects/            # AI 按项目存储的跨项目记忆
     <项目名>/
       _index.md        # 项目定义文件（name、remote、description）

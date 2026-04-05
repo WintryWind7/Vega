@@ -20,10 +20,9 @@ uv tool install .
 vega init --data /path/to/data
 ```
 
-这会做三件事：
+这会做两件事：
 1. 创建 `data/projects/` 和 `data/user/` 目录
-2. 创建空的 `data/index.json` 索引文件
-3. 将 data 目录的绝对路径写入 `~/.vega/settings.json`
+2. 将 data 目录的绝对路径写入 `~/.vega/settings.json`
 
 后续所有命令自动读取配置，无需再指定路径。
 
@@ -41,7 +40,7 @@ vega init --data ~/vega-data
 
 ### vega search \<关键词\>
 
-搜索索引，逗号分隔多关键词。按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，子串匹配，广泛召回，评分降序排列。
+搜索条目，逗号分隔多关键词。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，子串匹配，广泛召回，评分降序排列。
 
 加 `--project` 时搜索项目而非条目，匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
 
@@ -63,7 +62,7 @@ vega read user/editor-preferences.md
 
 ### vega write \<路径\>
 
-创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。自动更新索引。写入新项目目录时自动创建 `_index.md`。
+创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。写入新项目目录时自动创建 `_index.md`。
 
 ```bash
 echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发"
@@ -71,7 +70,7 @@ echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.m
 
 ### vega edit \<路径\>
 
-编辑已有条目。精确字符串替换：找到原文本，替换为新文本。自动更新索引。
+编辑已有条目。精确字符串替换：找到原文本，替换为新文本。
 
 ```bash
 # 改 description
@@ -88,7 +87,7 @@ vega edit projects/Vega/async.md --old "旧词" --new "新词" --replace-all
 
 ### vega delete \<路径\>
 
-删除条目，同时从索引中移除。
+删除条目。
 
 ```bash
 vega delete projects/Vega/old-note.md
@@ -96,10 +95,9 @@ vega delete projects/Vega/old-note.md
 
 ### vega check
 
-知识库自检，输出可读文本报告。检查三项：
+知识库自检，输出可读文本报告。检查两项：
 - 格式问题：frontmatter 是否完整、必填字段是否存在
 - 键统计：所有条目的 frontmatter 键是否一致
-- 索引一致性：索引记录与实际文件是否一一对应、内容是否同步
 
 ```bash
 vega check
@@ -118,7 +116,6 @@ vega check
 
 ```
 data/
-  index.json       # 索引文件（自动维护）
   projects/        # AI 存储的项目记忆
     <项目名>/
       *.md

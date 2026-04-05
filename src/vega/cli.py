@@ -5,9 +5,9 @@ import json
 import os
 import sys
 
-from .storage import read_entry, write_entry, delete_entry
+from .storage import write_entry, delete_entry
 from .parser import parse
-from .index import load_index, add_or_update, remove, rebuild, search
+from .index import load_index, rebuild, search
 from .check import run as check_run
 
 
@@ -58,11 +58,6 @@ def cmd_init(args):
     data_dir = os.path.abspath(args.data)
     os.makedirs(os.path.join(data_dir, "projects"), exist_ok=True)
     os.makedirs(os.path.join(data_dir, "user"), exist_ok=True)
-
-    index_path = os.path.join(data_dir, "index.json")
-    if not os.path.exists(index_path):
-        with open(index_path, "w", encoding="utf-8") as f:
-            json.dump({"entries": []}, f, ensure_ascii=False, indent=2)
 
     _save_config(data_dir)
 
@@ -196,7 +191,6 @@ def cmd_write(args):
                     f.write(index_content)
 
     write_entry(full_path, meta, content)
-    add_or_update(data_dir, rel_path, meta)
 
     if new_project:
         project_name = rel_path.split("/")[1]
@@ -250,10 +244,6 @@ def cmd_edit(args):
     with open(full_path, "w", encoding="utf-8") as f:
         f.write(text)
 
-    # 重新解析 frontmatter 更新索引
-    result = read_entry(full_path)
-    add_or_update(data_dir, rel_path, result["meta"])
-
     print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
 
 
@@ -267,7 +257,6 @@ def cmd_delete(args):
         sys.exit(1)
 
     delete_entry(path)
-    remove(data_dir, args.path.replace("\\", "/"))
 
     print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
 
