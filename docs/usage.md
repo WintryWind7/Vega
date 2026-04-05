@@ -43,6 +43,8 @@ vega init --data ~/vega-data
 
 搜索索引，逗号分隔多关键词。按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，子串匹配，广泛召回，评分降序排列。
 
+加 `--project` 时搜索项目而非条目，匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
+
 ```bash
 vega search "editor"
 vega search "Python, async"
@@ -53,7 +55,7 @@ vega search "编辑器" --limit 20
 
 ### vega read \<路径\>
 
-读取完整条目，返回结构化 JSON（frontmatter 与正文分开）。
+读取完整条目，直接输出 md 原文（含 frontmatter 和正文）。
 
 ```bash
 vega read user/editor-preferences.md
@@ -61,7 +63,7 @@ vega read user/editor-preferences.md
 
 ### vega write \<路径\>
 
-创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。自动更新索引。
+创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。自动更新索引。写入新项目目录时自动创建 `_index.md`。
 
 ```bash
 echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发"

@@ -4,12 +4,35 @@
 
 ```
 data/
-  projects/          # AI 按项目存储的跨项目记忆
+  index.json           # 条目索引（自动维护）
+  projects/            # AI 按项目存储的跨项目记忆
     <项目名>/
-      *.md
-  user/              # 用户的个人偏好（给 AI 恢复用）
+      _index.md        # 项目定义文件（name、remote、description）
+      *.md             # 知识条目
+  user/                # 用户的个人偏好（给 AI 恢复用）
     *.md
 ```
+
+### 项目定义文件 `_index.md`
+
+每个项目目录下可选的元信息文件，不参与索引和自检。
+
+```yaml
+---
+name: claude-code
+remote: https://github.com/anthropics/claude-code
+description: Claude Code CLI 工具的研究笔记
+---
+
+# claude-code
+
+项目简介。
+```
+
+- `name`：项目名，自动从目录名提取
+- `remote`：git 仓库 URL，可选
+- `description`：项目描述，可选
+- write 到新项目目录时自动创建（只填 name），AI 使用 edit 补充
 
 ## 条目格式
 

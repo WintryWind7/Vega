@@ -9,12 +9,12 @@ description: Vega 知识库操作，用于搜索、读写跨项目知识
 
 通过 bash 执行以下命令：
 
-- `vega search "关键词, 关键词"` — 搜索知识库，逗号分隔多关键词，广泛召回，返回按相关度排序的结果
-- `vega read <路径>` — 读取完整条目（结构化 JSON，frontmatter 与正文分开）
-- `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取
+- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词，广泛召回
+- `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
+- `vega read <路径>` — 读取完整条目，直接输出 md 原文
+- `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。写入新项目时自动创建 `_index.md`
 - `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换，可加 --replace-all 替换所有匹配
 - `vega delete <路径>` — 删除条目
-- `vega check` — 知识库自检，输出格式问题、键统计、索引一致性报告
 
 write、edit、delete 会自动更新索引，无需手动 rebuild。
 
@@ -32,7 +32,8 @@ write、edit、delete 会自动更新索引，无需手动 rebuild。
 
 ## 首次使用
 
-如果 `vega` 命令报错提示未初始化，运行：
-```bash
-vega init --data <知识库路径>
-```
+如果 `vega` 命令报错提示未初始化，运行 `vega init --help` 查看初始化方式。
+
+## 更多命令
+
+除上述常用命令外，Vega 可能还有其他命令可用。运行 `vega help` 获取完整命令列表。
