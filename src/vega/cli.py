@@ -115,6 +115,7 @@ def cmd_search(args):
         results.sort(key=lambda x: x["score"], reverse=True)
         print(f"vega data path: {data_dir}")
         print(f"查询关键字: {args.query}")
+        print("文件路径: vega data path/<相对路径>")
         print()
         for i, proj in enumerate(results[:args.limit], 1):
             line = f"{i}. {proj['path']}"
@@ -130,6 +131,7 @@ def cmd_search(args):
         return
     print(f"vega data path: {data_dir}")
     print(f"查询关键字: {args.query}")
+    print("文件路径: vega data path/<相对路径>")
     print()
     for i, entry in enumerate(results, 1):
         print(f"{i}. {entry['path']}: {entry['description']}")
@@ -314,7 +316,7 @@ def main():
         description="""\
 初始化 Vega 知识库。
 
-必须指定 --data <路径>，Vega 会在该路径下创建 projects/、user/ 目录和 index.json 索引文件。
+必须指定 --data <路径>，Vega 会在该路径下创建 projects/、user/ 目录。
 配置信息保存在 ~/.vega/settings.json 中，后续所有命令自动读取，无需再指定。
 
 如果你是 AI:
@@ -325,7 +327,7 @@ def main():
   vega init --data "D:/Vega/data" """)
 
     # search
-    p = sub.add_parser("search", parents=[common], help="搜索索引", description="搜索知识库索引。逗号分隔多关键词，广泛召回，评分降序排列。输出可读列表，路径可直接传给 vega read")
+    p = sub.add_parser("search", parents=[common], help="搜索条目", description="搜索知识库条目。逗号分隔多关键词，广泛召回，评分降序排列。输出可读列表和完整路径提示")
     p.add_argument("query", help="搜索关键词，逗号分隔多关键词")
     p.add_argument("--limit", "-n", type=int, default=50, help="最大返回条数")
     p.add_argument("--project", action="store_true", help="搜索项目而非条目，匹配项目名、remote、description")
@@ -348,18 +350,18 @@ def main():
     p.add_argument("--replace-all", action="store_true", help="替换所有匹配项")
 
     # delete
-    p = sub.add_parser("delete", parents=[common], help="删除条目", description="删除指定条目，同时从索引中移除")
+    p = sub.add_parser("delete", parents=[common], help="删除条目", description="删除指定条目")
     p.add_argument("path", help="条目路径（相对于 data/）")
 
     # rebuild
-    sub.add_parser("rebuild", parents=[common], help="重建索引", description="全量重建索引，扫描 data/ 下所有 .md 文件")
+    sub.add_parser("rebuild", parents=[common], help="全量扫描", description="全量扫描 data/ 下所有 .md 文件")
 
     # list
-    p = sub.add_parser("list", parents=[common], help="列出条目", description="列出索引中所有条目，可按路径前缀过滤")
+    p = sub.add_parser("list", parents=[common], help="列出条目", description="列出所有条目，可按路径前缀过滤")
     p.add_argument("prefix", nargs="?", default="", help="路径前缀过滤")
 
     # check
-    sub.add_parser("check", parents=[common], help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性、索引与文件同步")
+    sub.add_parser("check", parents=[common], help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性")
 
     args = parser.parse_args()
     if args.command is None or args.command == "help":

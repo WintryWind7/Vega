@@ -21,12 +21,9 @@
 
 通过 bash 执行以下命令（路径均为相对于 data/ 的相对路径）：
 
-- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词。结果中的路径可直接传给 `vega read`
+- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词。
 - `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
-- `vega read <路径>` — 读取完整条目，直接输出 md 原文（含 frontmatter 和正文）。路径即 search 结果中的路径
 - `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取（用 `printf "正文" | vega write ...`）。写入新项目时自动创建 `_index.md`
-- `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。可加 --replace-all 替换所有匹配
-- `vega delete <路径>` — 删除条目
 
 ## 写入规范
 
@@ -38,7 +35,3 @@
 ## 首次使用
 
 如果 `vega` 命令报错提示未初始化，运行 `vega init --help` 查看初始化方式。
-
-## 更多命令
-
-除上述常用命令外，Vega 可能还有其他命令可用。运行 `vega help` 获取完整命令列表。
