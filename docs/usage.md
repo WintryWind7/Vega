@@ -184,4 +184,4 @@ cp docs/skills/vega.md ~/.claude/skills/vega.md
 
 - `projects/<项目名>/` — 每个项目一个目录，项目名与 git 仓库名保持一致
 - `user/` — 个人偏好、配置信息，内部自由组织
-- 文件名即标题，用可读的名字：`async-programming.md` 或 `异步编程.md`
+- 文件名即标题，用可读的名字：`async-programming.md` 或 `异步编程.md`，路径需带 `.md` 后缀

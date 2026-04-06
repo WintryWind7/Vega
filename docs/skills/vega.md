@@ -17,7 +17,7 @@ description: Vega 知识库操作，用于搜索、读写跨项目知识
 - `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。匹配多处时用 `--replace-all`
 - `vega delete <路径>` — 删除条目
 
-路径均为相对于 data/ 的相对路径。
+路径均为相对于 data/ 的相对路径，需带 .md 后缀。
 
 ## 写入规范
 
