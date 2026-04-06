@@ -40,7 +40,7 @@ vega init --data ~/vega-data
 
 ### vega search \<关键词\>
 
-搜索条目，逗号分隔多关键词。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，广泛召回，评分降序排列。
+搜索条目，逗号分隔多关键词（OR 关系，任一匹配即返回，匹配越多排序越前）。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，广泛召回，评分降序排列。
 
 加 `--project` 时搜索项目而非条目，匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
 
@@ -62,7 +62,7 @@ vega read user/editor-preferences.md
 
 ### vega write \<路径\>
 
-创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。写入新项目目录时自动创建 `_index.md`。
+创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目目录时自动创建 `_index.md`。
 
 ```bash
 vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发" <<< "# Python async
@@ -105,13 +105,22 @@ vega delete projects/Vega/old-note.md
 vega check
 ```
 
+### vega list [路径前缀]
+
+列出指定目录下的条目，输出可读列表（序号、路径、描述）。尾部斜杠可选。
+
+```bash
+vega list projects/Vega
+vega list user/
+vega list              # 列出全部
+```
+
 ### 内部命令
 
 以下命令代码层面保留，但不作为外部接口暴露：
 
 | 命令 | 用途 |
 |---|---|
-| `vega list` | 列出条目，可按路径前缀过滤 |
 | `vega rebuild` | 全量扫描条目 |
 
 ## 知识库结构
@@ -160,6 +169,7 @@ cp docs/skills/vega.md ~/.claude/skills/vega.md
 ### tags 怎么写
 
 - 使用具体、可搜索的标签，避免太泛（如 "笔记"）
+- 用名词或名词短语，不用动词和形容词（如 `Python` 而非 `学习Python`）
 - 同时标注中英文标签，方便不同语言搜索：`tags: [Python, 并发, async]`
 - 标注领域和技术栈：`tags: [React, 前端, 状态管理]`
 

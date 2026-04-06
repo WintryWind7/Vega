@@ -265,15 +265,21 @@ def cmd_rebuild(args):
 
 
 def cmd_list(args):
-    """列出条目。"""
+    """列出指定目录下的条目。"""
     data_dir = _resolve_data_dir(args)
     index = load_index(data_dir)
 
+    prefix = args.prefix.rstrip("/") if args.prefix else ""
     entries = index["entries"]
-    if args.prefix:
-        entries = [e for e in entries if e["path"].startswith(args.prefix)]
+    if prefix:
+        entries = [e for e in entries if e["path"].startswith(prefix)]
 
-    print(json.dumps({"entries": entries}, ensure_ascii=False, indent=2))
+    if not entries:
+        print("无条目")
+        return
+
+    for i, entry in enumerate(entries, 1):
+        print(f"{i}. {entry['path']}: {entry['description']}")
 
 
 def cmd_check(args):

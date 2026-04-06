@@ -21,10 +21,11 @@
 
 通过 bash 执行以下命令（路径均为相对于 data/ 的相对路径）：
 
-- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词，匹配标题、标签、描述和路径（不搜正文）
+- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词（OR 关系，子串匹配），匹配标题、标签、描述和路径，不搜正文
 - `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
+- `vega list [路径前缀]` — 列出指定目录下的条目，如 `vega list projects/Vega` 或 `vega list user`。无参数时列出全部
 - `vega read <路径>` — 读取条目，输出 md 原文
-- `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。写入新项目时自动创建 `_index.md`
+- `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目时自动创建 `_index.md`
 - `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。匹配多处时用 `--replace-all`
 - `vega delete <路径>` — 删除条目
 
@@ -32,7 +33,7 @@
 
 - description 和 tags 必填
 - description：一到两句话概括内容，你只看这个判断是否需要读正文
-- tags：具体可搜索，同时标中英文（如 `Python, 并发, async`）
+- tags：用名词或名词短语，具体可搜索，同时标中英文（如 `Python, 并发, async`）
 - 存意图不存实现，不存具体代码
 
 ## 首次使用
