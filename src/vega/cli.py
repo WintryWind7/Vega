@@ -199,7 +199,7 @@ def cmd_write(args):
 
 
 def cmd_edit(args):
-    """编辑已有条目，精确字符串替换。"""
+    """编辑已有条目，从 stdin 读取 JSON 格式的替换内容。"""
     data_dir = _resolve_data_dir(args)
     full_path = os.path.join(data_dir, args.path)
     rel_path = args.path.replace("\\", "/")
@@ -208,29 +208,37 @@ def cmd_edit(args):
         print(json.dumps({"error": f"条目不存在: {args.path}，请使用 vega write 创建"}, ensure_ascii=False))
         sys.exit(1)
 
-    if not args.old or not args.new:
-        print(json.dumps({"error": "edit 必须提供 --old 和 --new，且不能为空"}, ensure_ascii=False))
+    # 从 stdin 读取 JSON
+    try:
+        input_data = json.load(sys.stdin)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
+        sys.exit(1)
+
+    old = input_data.get("old")
+    new = input_data.get("new")
+    replace_all = input_data.get("replace_all", False)
+
+    if not old or not new:
+        print(json.dumps({"error": "JSON 必须包含 'old' 和 'new' 字段"}, ensure_ascii=False))
         sys.exit(1)
 
     with open(full_path, "r", encoding="utf-8") as f:
         text = f.read()
 
-    old = args.old.replace('\\n', '\n')
-    new = args.new.replace('\\n', '\n')
-
     if old == new:
-        print(json.dumps({"error": "--old 和 --new 不能相同"}, ensure_ascii=False))
+        print(json.dumps({"error": "'old' 和 'new' 不能相同"}, ensure_ascii=False))
         sys.exit(1)
 
     if old not in text:
         print(json.dumps({"error": f"未找到要替换的文本"}, ensure_ascii=False))
         sys.exit(1)
 
-    if not args.replace_all and text.count(old) > 1:
-        print(json.dumps({"error": f"匹配到 {text.count(old)} 处，请提供更精确的文本或使用 --replace-all"}, ensure_ascii=False))
+    if not replace_all and text.count(old) > 1:
+        print(json.dumps({"error": f"匹配到 {text.count(old)} 处，请提供更精确的文本或设置 replace_all: true"}, ensure_ascii=False))
         sys.exit(1)
 
-    if args.replace_all:
+    if replace_all:
         text = text.replace(old, new)
     else:
         text = text.replace(old, new, 1)
@@ -341,11 +349,8 @@ def main():
     p.add_argument("--tags", required=True, help="标签，逗号分隔（必填）")
 
     # edit
-    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换", description="编辑已有条目，用 --old 和 --new 进行精确字符串替换。匹配多处时需提供更精确的文本或使用 --replace-all")
+    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换", description="编辑已有条目，从 stdin 读取 JSON 格式的替换内容。JSON 必须包含 'old' 和 'new' 字段，可选 'replace_all' 字段")
     p.add_argument("path", help="条目路径（相对于 data/）")
-    p.add_argument("--old", required=True, help="要替换的原文本")
-    p.add_argument("--new", required=True, help="替换后的新文本")
-    p.add_argument("--replace-all", action="store_true", help="替换所有匹配项")
 
     # delete
     p = sub.add_parser("delete", parents=[common], help="删除条目", description="删除指定条目")

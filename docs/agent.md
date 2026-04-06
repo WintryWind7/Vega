@@ -29,7 +29,7 @@ data/
 - AI 通过 bash 调用 CLI 命令操作，首次使用需 `vega init --data <路径>` 初始化，路径保存在 `~/.vega/settings.json`
 - search 即时扫描所有文件进行检索，无需维护索引，多关键词 OR 关系，子串匹配，不搜正文
 - write 创建新条目（description 和 tags 必填，正文从 stdin 读取），同路径已存在时报错，写入新项目时自动创建 `_index.md`
-- edit 用 --old/--new 精确字符串替换已有条目
+- edit 从 stdin 读取 JSON 格式的替换内容（必须包含 old 和 new 字段）
 - list 列出指定目录下的条目，可按路径前缀过滤
 - search --project 模糊搜索项目名，不确定项目名时使用，匹配 `_index.md` 中的 name、remote、description
 - 人可以直接编辑 Markdown 文件，不影响使用

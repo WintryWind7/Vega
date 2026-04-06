@@ -14,7 +14,7 @@ description: Vega 知识库操作，用于搜索、读写跨项目知识
 - `vega search --project "项目名"` — 模糊搜索项目，不确定项目名时使用
 - `vega read <路径>` — 读取条目，输出 md 原文
 - `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目时自动创建 `_index.md`
-- `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。匹配多处时用 `--replace-all`
+- `vega edit <路径>` — 编辑已有条目，stdin 读取 JSON 格式的替换内容。JSON 必须包含 `old` 和 `new` 字段，可选 `replace_all` 字段。示例：`vega edit path <<< '{"old": "旧文本", "new": "新文本"}'`
 - `vega delete <路径>` — 删除条目
 
 路径均为相对于 data/ 的相对路径，需带 .md 后缀。

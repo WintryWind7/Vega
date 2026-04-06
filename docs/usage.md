@@ -72,19 +72,20 @@ asyncio 核心概念"
 
 ### vega edit \<路径\>
 
-编辑已有条目。精确字符串替换：找到原文本，替换为新文本。
+编辑已有条目。从 stdin 读取 JSON 格式的替换内容，JSON 必须包含 `old` 和 `new` 字段，可选 `replace_all` 字段。
 
 ```bash
-# 改 description
-vega edit projects/Vega/async.md --old "旧描述" --new "新描述"
+# 单行替换
+vega edit projects/Vega/async.md <<< '{"old": "旧描述", "new": "新描述"}'
+
+# 多行替换（JSON 中 \n 表示换行）
+vega edit projects/Vega/async.md <<< '{"old": "第一行\n第二行", "new": "新内容"}'
 
 # 追加正文（把最后一行作为锚点）
-vega edit projects/Vega/async.md --old "最后一段内容" --new "最后一段内容
-
-补充的新内容"
+vega edit projects/Vega/async.md <<< '{"old": "最后一段内容", "new": "最后一段内容\n\n补充的新内容"}'
 
 # 批量替换
-vega edit projects/Vega/async.md --old "旧词" --new "新词" --replace-all
+vega edit projects/Vega/async.md <<< '{"old": "旧词", "new": "新词", "replace_all": true}'
 ```
 
 ### vega delete \<路径\>
