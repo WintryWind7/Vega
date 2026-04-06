@@ -12,7 +12,7 @@
 
 所有路径相对于知识库根目录（data/）：
 
-- `projects/<项目名>/` — 项目记忆，按项目名建子目录
+- `projects/<项目名>/` — 项目记忆，项目名与 git 仓库名保持一致
 - `user/` — 个人偏好和配置
 
 路径示例：`projects/Vega/async-programming.md`、`user/editor-preferences.md`
@@ -21,7 +21,7 @@
 
 通过 bash 执行以下命令（路径均为相对于 data/ 的相对路径）：
 
-- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词
+- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词，匹配标题、标签、描述和路径（不搜正文）
 - `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
 - `vega read <路径>` — 读取条目，输出 md 原文
 - `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。写入新项目时自动创建 `_index.md`

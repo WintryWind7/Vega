@@ -113,10 +113,6 @@ def cmd_search(args):
             return
 
         results.sort(key=lambda x: x["score"], reverse=True)
-        print(f"vega data path: {data_dir}")
-        print(f"查询关键字: {args.query}")
-        print("文件路径: vega data path/<相对路径>")
-        print()
         for i, proj in enumerate(results[:args.limit], 1):
             line = f"{i}. {proj['path']}"
             if proj["description"]:
@@ -129,10 +125,6 @@ def cmd_search(args):
     if not results:
         print("无匹配结果")
         return
-    print(f"vega data path: {data_dir}")
-    print(f"查询关键字: {args.query}")
-    print("文件路径: vega data path/<相对路径>")
-    print()
     for i, entry in enumerate(results, 1):
         print(f"{i}. {entry['path']}: {entry['description']}")
 
@@ -223,8 +215,8 @@ def cmd_edit(args):
     with open(full_path, "r", encoding="utf-8") as f:
         text = f.read()
 
-    old = args.old
-    new = args.new
+    old = args.old.replace('\\n', '\n')
+    new = args.new.replace('\\n', '\n')
 
     if old == new:
         print(json.dumps({"error": "--old 和 --new 不能相同"}, ensure_ascii=False))
