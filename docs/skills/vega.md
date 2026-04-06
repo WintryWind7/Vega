@@ -10,8 +10,8 @@ description: Vega 知识库操作，用于搜索、读写跨项目知识
 通过 bash 执行以下命令：
 
 - `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词（OR 关系，子串匹配），匹配标题、标签、描述和路径，不搜正文
-- `vega search --project "关键词"` — 搜索项目，匹配项目名、remote、description
 - `vega list [路径前缀]` — 列出指定目录下的条目，如 `vega list projects/Vega` 或 `vega list user`。无参数时列出全部
+- `vega search --project "项目名"` — 模糊搜索项目，不确定项目名时使用
 - `vega read <路径>` — 读取条目，输出 md 原文
 - `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目时自动创建 `_index.md`
 - `vega edit <路径> --old "原文本" --new "新文本"` — 编辑已有条目，精确字符串替换。匹配多处时用 `--replace-all`

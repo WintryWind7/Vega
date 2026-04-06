@@ -42,7 +42,7 @@ vega init --data ~/vega-data
 
 搜索条目，逗号分隔多关键词（OR 关系，任一匹配即返回，匹配越多排序越前）。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，广泛召回，评分降序排列。
 
-加 `--project` 时搜索项目而非条目，匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
+加 `--project` 时模糊搜索项目名而非条目，不确定项目名时使用。匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
 
 ```bash
 vega search "editor"

@@ -31,5 +31,5 @@ data/
 - write 创建新条目（description 和 tags 必填，正文从 stdin 读取），同路径已存在时报错，写入新项目时自动创建 `_index.md`
 - edit 用 --old/--new 精确字符串替换已有条目
 - list 列出指定目录下的条目，可按路径前缀过滤
-- search --project 可按项目级搜索，匹配 `_index.md` 中的 name、remote、description
+- search --project 模糊搜索项目名，不确定项目名时使用，匹配 `_index.md` 中的 name、remote、description
 - 人可以直接编辑 Markdown 文件，不影响使用

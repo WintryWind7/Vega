@@ -26,7 +26,7 @@ AI 通过 bash 工具执行 `vega` 命令，不需要封装为 MCP tool。接入
 |---|---|---|---|
 | `vega init --data <路径>` | JSON | 初始化知识库 | — |
 | `vega search <关键词>` | 可读列表 | 搜索条目，逗号分隔多关键词，广泛召回（匹配标题、标签、描述、路径，不搜正文） | 即时扫描 |
-| `vega search --project <关键词>` | 可读列表 | 搜索项目，匹配项目名、remote、description | 查 _index.md |
+| `vega search --project <项目名>` | 可读列表 | 模糊搜索项目，不确定项目名时使用 | 查 _index.md |
 | `vega read <路径>` | md 原文 | 读取完整条目（含 frontmatter 和正文） | — |
 | `vega write <路径>` | JSON | 创建新条目，description 和 tags 必填，正文从 stdin 读取 | — |
 | `vega edit <路径>` | JSON | 编辑已有条目，--old/--new 精确字符串替换 | — |
