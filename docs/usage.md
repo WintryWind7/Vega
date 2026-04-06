@@ -65,7 +65,9 @@ vega read user/editor-preferences.md
 创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。写入新项目目录时自动创建 `_index.md`。
 
 ```bash
-echo "# Python async\n\nasyncio 核心概念" | vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发"
+vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发" <<< "# Python async
+
+asyncio 核心概念"
 ```
 
 ### vega edit \<路径\>
@@ -110,7 +112,7 @@ vega check
 | 命令 | 用途 |
 |---|---|
 | `vega list` | 列出条目，可按路径前缀过滤 |
-| `vega rebuild` | 全量重建索引 |
+| `vega rebuild` | 全量扫描条目 |
 
 ## 知识库结构
 

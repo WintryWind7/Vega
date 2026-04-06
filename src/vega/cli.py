@@ -337,7 +337,7 @@ def main():
     p.add_argument("path", help="条目路径（相对于 data/）")
 
     # write
-    p = sub.add_parser("write", parents=[common], help="创建新条目，正文从 stdin 读取", description="创建新条目。--description 和 --tags 必填，正文通过 stdin 传入，例如: printf '内容' | vega write path --description '描述' --tags '标签'")
+    p = sub.add_parser("write", parents=[common], help="创建新条目", description="创建新条目。--description 和 --tags 必填，正文从 stdin 读取，例如: vega write path --description '描述' --tags '标签' <<< '正文'")
     p.add_argument("path", help="条目路径（相对于 data/）")
     p.add_argument("--description", required=True, help="条目描述（必填）")
     p.add_argument("--tags", required=True, help="标签，逗号分隔（必填）")

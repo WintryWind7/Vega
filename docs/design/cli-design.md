@@ -31,7 +31,7 @@ AI 通过 bash 工具执行 `vega` 命令，不需要封装为 MCP tool。接入
 | `vega write <路径>` | JSON | 创建新条目，description 和 tags 必填，正文从 stdin 读取 | — |
 | `vega edit <路径>` | JSON | 编辑已有条目，--old/--new 精确字符串替换 | — |
 | `vega delete <路径>` | JSON | 删除条目 | — |
-| `vega check` | 可读文本 | 知识库自检（格式、键统计、索引一致性） | — |
+| `vega check` | 可读文本 | 知识库自检（格式、键统计） | — |
 | `vega help` | 可读文本 | 显示完整命令列表 | — |
 
 write、edit、delete 无需维护索引，search 即时扫描文件。详见[无索引方案](indexless.md)。
