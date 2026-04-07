@@ -17,7 +17,7 @@ uv tool install .
 ## 初始化
 
 ```bash
-vega init --data /path/to/data
+vega init <<< '{"data": "/path/to/data"}'
 ```
 
 这会做两件事：
@@ -28,77 +28,113 @@ vega init --data /path/to/data
 
 ## 命令参考
 
-所有命令输出 JSON 格式（check 除外，输出可读文本）。AI 通过 bash 调用。
+所有命令通过 stdin 读取 JSON 参数。有必填字段的命令必须传入 JSON；全部字段可选或无字段的命令可以不传。
 
-### vega init --data \<路径\>
+### vega init
 
-初始化知识库。必须指定 `--data`，这是唯一需要指定路径的命令。
+初始化知识库。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| data | 是 | 知识库路径 |
 
 ```bash
-vega init --data ~/vega-data
+vega init <<< '{"data": "~/vega-data"}'
 ```
 
-### vega search \<关键词\>
+### vega search
 
 搜索条目，逗号分隔多关键词（OR 关系，任一匹配即返回，匹配越多排序越前）。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，广泛召回，评分降序排列。
 
-加 `--project` 时模糊搜索项目名而非条目，不确定项目名时使用。匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
+加 `"project": true` 时模糊搜索项目名而非条目，不确定项目名时使用。匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| query | 是 | 搜索关键词，逗号分隔多关键词 |
+| limit | 否 | 最大返回条数，默认 50 |
+| project | 否 | 搜索项目而非条目，默认 false |
 
 ```bash
-vega search "editor"
-vega search "Python, async"
-vega search "编辑器" --limit 20
+vega search <<< '{"query": "editor"}'
+vega search <<< '{"query": "Python, async", "limit": 20}'
+vega search <<< '{"query": "Vega", "project": true}'
 ```
 
-`--limit` / `-n` 控制最大返回条数，默认 50。
-
-### vega read \<路径\>
+### vega read
 
 读取完整条目，直接输出 md 原文（含 frontmatter 和正文）。
 
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| path | 是 | 条目路径（相对于 data/，需带 .md 后缀） |
+
 ```bash
-vega read user/editor-preferences.md
+vega read <<< '{"path": "user/editor-preferences.md"}'
 ```
 
-### vega write \<路径\>
+### vega write
 
-创建新条目。`--description` 和 `--tags` 必填，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目目录时自动创建 `_index.md`。
+创建新条目。同路径已存在时会报错，应用 edit 修改。写入新项目目录时自动创建 `_index.md`。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| path | 是 | 条目路径（相对于 data/，需带 .md 后缀） |
+| description | 是 | 条目描述 |
+| tags | 是 | 标签数组 |
+| content | 是 | 正文内容 |
 
 ```bash
-vega write projects/Vega/async.md --description "Python 异步编程" --tags "Python,async,并发" <<< "# Python async
-
-asyncio 核心概念"
+vega write <<< '{"path": "projects/Vega/async.md", "description": "Python 异步编程", "tags": ["Python", "async", "并发"], "content": "# Python async\n\nasyncio 核心概念"}'
 ```
 
-### vega edit \<路径\>
+### vega edit
 
-编辑已有条目。从 stdin 读取 JSON 格式的替换内容，JSON 必须包含 `old` 和 `new` 字段，可选 `replace_all` 字段。
+编辑已有条目，精确字符串替换。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| path | 是 | 条目路径（相对于 data/，需带 .md 后缀） |
+| old | 是 | 要替换的文本 |
+| new | 是 | 替换后的文本 |
+| replace_all | 否 | 替换所有匹配，默认 false |
 
 ```bash
-# 单行替换
-vega edit projects/Vega/async.md <<< '{"old": "旧描述", "new": "新描述"}'
-
-# 多行替换（JSON 中 \n 表示换行）
-vega edit projects/Vega/async.md <<< '{"old": "第一行\n第二行", "new": "新内容"}'
-
-# 追加正文（把最后一行作为锚点）
-vega edit projects/Vega/async.md <<< '{"old": "最后一段内容", "new": "最后一段内容\n\n补充的新内容"}'
+# 单次替换
+vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧描述", "new": "新描述"}'
 
 # 批量替换
-vega edit projects/Vega/async.md <<< '{"old": "旧词", "new": "新词", "replace_all": true}'
+vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧词", "new": "新词", "replace_all": true}'
 ```
 
-### vega delete \<路径\>
+### vega delete
 
 删除条目。
 
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| path | 是 | 条目路径（相对于 data/，需带 .md 后缀） |
+
 ```bash
-vega delete projects/Vega/old-note.md
+vega delete <<< '{"path": "projects/Vega/old-note.md"}'
+```
+
+### vega list
+
+列出指定目录下的条目，输出可读列表（序号、路径、描述）。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| prefix | 否 | 路径前缀过滤，不填列出全部 |
+
+```bash
+vega list
+vega list <<< '{"prefix": "projects/Vega"}'
+vega list <<< '{"prefix": "user"}'
 ```
 
 ### vega check
 
-知识库自检，输出可读文本报告。检查两项：
+知识库自检，输出可读文本报告。无需传入 JSON。检查两项：
 - 格式问题：frontmatter 是否完整、必填字段是否存在
 - 键统计：所有条目的 frontmatter 键是否一致
 
@@ -106,23 +142,13 @@ vega delete projects/Vega/old-note.md
 vega check
 ```
 
-### vega list [路径前缀]
+### vega rebuild
 
-列出指定目录下的条目，输出可读列表（序号、路径、描述）。尾部斜杠可选。
+全量扫描，返回条目数。无需传入 JSON。
 
 ```bash
-vega list projects/Vega
-vega list user/
-vega list              # 列出全部
+vega rebuild
 ```
-
-### 内部命令
-
-以下命令代码层面保留，但不作为外部接口暴露：
-
-| 命令 | 用途 |
-|---|---|
-| `vega rebuild` | 全量扫描条目 |
 
 ## 备注
 

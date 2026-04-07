@@ -15,13 +15,6 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".vega")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "settings.json")
 
 
-def _save_config(data_dir: str) -> None:
-    """将 data 目录路径写入 ~/.vega/settings.json。"""
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump({"data_dir": os.path.abspath(data_dir)}, f, ensure_ascii=False, indent=2)
-
-
 def _load_config() -> str | None:
     """从 ~/.vega/settings.json 读取 data 目录路径。"""
     if not os.path.exists(CONFIG_PATH):
@@ -31,46 +24,61 @@ def _load_config() -> str | None:
     return config.get("data_dir")
 
 
-def _resolve_data_dir(args) -> str:
-    """获取 data 目录：--data 参数 > ~/.vega.json > 报错。"""
-    explicit = getattr(args, "data", None)
-    if explicit:
-        return explicit
+def _read_stdin_json() -> dict:
+    """从 stdin 读取 JSON，空输入返回空字典。"""
+    raw = sys.stdin.read()
+    if not raw.strip():
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
+        sys.exit(1)
 
+
+def _require_data_dir() -> str:
+    """获取 data 目录，未配置则报错。"""
     config_dir = _load_config()
     if config_dir:
         return config_dir
 
     print(json.dumps({
-        "error": "未配置知识库路径，请先运行 vega init --data <路径>"
+        "error": "未配置知识库路径，请先运行 vega init"
     }, ensure_ascii=False))
     sys.exit(1)
 
 
 def cmd_init(args):
-    """初始化知识库，必须指定 --data 路径。"""
-    if not args.data:
-        print(json.dumps({
-            "error": "init 必须指定 --data <路径>，例如: vega init --data /path/to/data"
-        }, ensure_ascii=False))
+    """初始化知识库，从 stdin 读取 JSON。"""
+    data = _read_stdin_json()
+
+    data_path = data.get("data")
+    if not data_path:
+        print(json.dumps({"error": "data 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
-    data_dir = os.path.abspath(args.data)
+    data_dir = os.path.abspath(data_path)
     os.makedirs(os.path.join(data_dir, "projects"), exist_ok=True)
     os.makedirs(os.path.join(data_dir, "user"), exist_ok=True)
 
-    _save_config(data_dir)
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump({"data_dir": data_dir}, f, ensure_ascii=False, indent=2)
 
     print(json.dumps({"status": "ok", "data_dir": data_dir}, ensure_ascii=False))
 
 
 def cmd_search(args):
-    """搜索索引，广泛召回。"""
-    data_dir = _resolve_data_dir(args)
+    """搜索条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
 
-    if args.project:
-        # 项目级搜索：扫描 projects/*/_index.md
-        keywords = [kw.strip().lower() for kw in args.query.split(",") if kw.strip()]
+    query = data.get("query", "")
+    limit = data.get("limit", 50)
+    project = data.get("project", False)
+
+    if project:
+        keywords = [kw.strip().lower() for kw in query.split(",") if kw.strip()]
         projects_dir = os.path.join(data_dir, "projects")
         results = []
 
@@ -113,15 +121,15 @@ def cmd_search(args):
             return
 
         results.sort(key=lambda x: x["score"], reverse=True)
-        for i, proj in enumerate(results[:args.limit], 1):
+        for i, proj in enumerate(results[:limit], 1):
             line = f"{i}. {proj['path']}"
             if proj["description"]:
                 line += f": {proj['description']}"
             print(line)
         return
 
-    # 条目级搜索（原有逻辑）
-    results = search(data_dir, args.query, limit=args.limit)
+    # 条目级搜索
+    results = search(data_dir, query, limit=limit)
     if not results:
         print("无匹配结果")
         return
@@ -130,33 +138,56 @@ def cmd_search(args):
 
 
 def cmd_read(args):
-    """读取条目，直接输出 md 原文。"""
-    data_dir = _resolve_data_dir(args)
-    path = os.path.join(data_dir, args.path)
+    """读取条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
 
-    if not os.path.exists(path):
-        print(json.dumps({"error": f"文件不存在: {args.path}"}, ensure_ascii=False))
+    path = data.get("path", "")
+    if not path:
+        print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
-    with open(path, "r", encoding="utf-8") as f:
+    full_path = os.path.join(data_dir, path)
+
+    if not os.path.exists(full_path):
+        print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
+        sys.exit(1)
+
+    with open(full_path, "r", encoding="utf-8") as f:
         print(f.read())
 
 
 def cmd_write(args):
-    """创建新条目，description 和 tags 必填，正文从 stdin 读取。"""
-    data_dir = _resolve_data_dir(args)
-    full_path = os.path.join(data_dir, args.path)
-    rel_path = args.path.replace("\\", "/")
+    """创建新条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
+
+    path = data.get("path", "")
+    description = data.get("description", "")
+    tags = data.get("tags", [])
+    content = data.get("content", "")
+
+    if not path:
+        print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
+    if not description:
+        print(json.dumps({"error": "description 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
+    if not tags:
+        print(json.dumps({"error": "tags 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
+
+    rel_path = path.replace("\\", "/")
+    full_path = os.path.join(data_dir, rel_path)
 
     if os.path.exists(full_path):
-        print(json.dumps({"error": f"条目已存在: {args.path}，请使用 vega edit 修改"}, ensure_ascii=False))
+        print(json.dumps({"error": f"条目已存在: {path}，请使用 vega edit 修改"}, ensure_ascii=False))
         sys.exit(1)
 
     meta = {
-        "description": args.description,
-        "tags": [t.strip() for t in args.tags.split(",")],
+        "description": description,
+        "tags": tags,
     }
-    content = sys.stdin.read()
 
     # 检测是否为新项目目录，自动创建 _index.md
     new_project = False
@@ -190,48 +221,47 @@ def cmd_write(args):
         project_name = rel_path.split("/")[1]
         print(json.dumps({
             "status": "ok",
-            "path": args.path,
+            "path": path,
             "new_project": project_name,
             "message": f"新项目 {project_name}，已自动创建 _index.md，建议使用 vega edit 补充 remote 和 description",
         }, ensure_ascii=False))
     else:
-        print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
+        print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
 
 def cmd_edit(args):
-    """编辑已有条目，从 stdin 读取 JSON 格式的替换内容。"""
-    data_dir = _resolve_data_dir(args)
-    full_path = os.path.join(data_dir, args.path)
-    rel_path = args.path.replace("\\", "/")
+    """编辑已有条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
 
-    if not os.path.exists(full_path):
-        print(json.dumps({"error": f"条目不存在: {args.path}，请使用 vega write 创建"}, ensure_ascii=False))
+    path = data.get("path", "")
+    if not path:
+        print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
-    # 从 stdin 读取 JSON
-    try:
-        input_data = json.load(sys.stdin)
-    except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
-        sys.exit(1)
-
-    old = input_data.get("old")
-    new = input_data.get("new")
-    replace_all = input_data.get("replace_all", False)
+    old = data.get("old")
+    new = data.get("new")
+    replace_all = data.get("replace_all", False)
 
     if not old or not new:
-        print(json.dumps({"error": "JSON 必须包含 'old' 和 'new' 字段"}, ensure_ascii=False))
+        print(json.dumps({"error": "old 和 new 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
+
+    full_path = os.path.join(data_dir, path)
+
+    if not os.path.exists(full_path):
+        print(json.dumps({"error": f"条目不存在: {path}，请使用 vega write 创建"}, ensure_ascii=False))
         sys.exit(1)
 
     with open(full_path, "r", encoding="utf-8") as f:
         text = f.read()
 
     if old == new:
-        print(json.dumps({"error": "'old' 和 'new' 不能相同"}, ensure_ascii=False))
+        print(json.dumps({"error": "old 和 new 不能相同"}, ensure_ascii=False))
         sys.exit(1)
 
     if old not in text:
-        print(json.dumps({"error": f"未找到要替换的文本"}, ensure_ascii=False))
+        print(json.dumps({"error": "未找到要替换的文本"}, ensure_ascii=False))
         sys.exit(1)
 
     if not replace_all and text.count(old) > 1:
@@ -246,26 +276,33 @@ def cmd_edit(args):
     with open(full_path, "w", encoding="utf-8") as f:
         f.write(text)
 
-    print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
+    print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
 
 def cmd_delete(args):
-    """删除条目。"""
-    data_dir = _resolve_data_dir(args)
-    path = os.path.join(data_dir, args.path)
+    """删除条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
 
-    if not os.path.exists(path):
-        print(json.dumps({"error": f"文件不存在: {args.path}"}, ensure_ascii=False))
+    path = data.get("path", "")
+    if not path:
+        print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
-    delete_entry(path)
+    full_path = os.path.join(data_dir, path)
 
-    print(json.dumps({"status": "ok", "path": args.path}, ensure_ascii=False))
+    if not os.path.exists(full_path):
+        print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
+        sys.exit(1)
+
+    delete_entry(full_path)
+
+    print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
 
 def cmd_rebuild(args):
     """重建索引。"""
-    data_dir = _resolve_data_dir(args)
+    data_dir = _require_data_dir()
     index = rebuild(data_dir)
     print(
         json.dumps({"status": "ok", "entries": len(index["entries"])}, ensure_ascii=False)
@@ -273,11 +310,13 @@ def cmd_rebuild(args):
 
 
 def cmd_list(args):
-    """列出指定目录下的条目。"""
-    data_dir = _resolve_data_dir(args)
-    index = load_index(data_dir)
+    """列出指定目录下的条目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
 
-    prefix = args.prefix.rstrip("/") if args.prefix else ""
+    prefix = data.get("prefix", "").rstrip("/")
+
+    index = load_index(data_dir)
     entries = index["entries"]
     if prefix:
         entries = [e for e in entries if e["path"].startswith(prefix)]
@@ -292,7 +331,7 @@ def cmd_list(args):
 
 def cmd_check(args):
     """知识库自检。"""
-    data_dir = _resolve_data_dir(args)
+    data_dir = _require_data_dir()
     print(check_run(data_dir))
 
 
@@ -306,65 +345,119 @@ def main():
         sys.stderr.reconfigure(encoding="utf-8")
 
     parser = argparse.ArgumentParser(prog="vega", description="Vega 知识库 CLI")
-
-    # 公共参数，所有子命令共享
-    common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--data", "-D", help="data 目录路径", default=None)
-
     sub = parser.add_subparsers(dest="command")
 
     # help
     sub.add_parser("help", help="显示帮助信息")
 
     # init
-    sub.add_parser("init", parents=[common], help="初始化知识库",
+    sub.add_parser("init", help="初始化知识库",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
-初始化 Vega 知识库。
+初始化 Vega 知识库，从 stdin 读取 JSON。
 
-必须指定 --data <路径>，Vega 会在该路径下创建 projects/、user/ 目录。
-配置信息保存在 ~/.vega/settings.json 中，后续所有命令自动读取，无需再指定。
+JSON 字段：
+  data  (必填)  知识库路径
 
-如果你是 AI:
-  请务必向用户确认 data 目录路径，不要自行决定。
+示例：
+  vega init <<< '{"data": "~/vega-data"}'
+  vega init <<< '{"data": "D:/Vega/data"}'
 
-示例:
-  vega init --data ~/vega-data
-  vega init --data "D:/Vega/data" """)
+注意：AI 务必向用户确认 data 目录路径，不要自行决定。""")
 
     # search
-    p = sub.add_parser("search", parents=[common], help="搜索条目", description="搜索知识库条目。逗号分隔多关键词，广泛召回，评分降序排列。输出可读列表和完整路径提示")
-    p.add_argument("query", help="搜索关键词，逗号分隔多关键词")
-    p.add_argument("--limit", "-n", type=int, default=50, help="最大返回条数")
-    p.add_argument("--project", action="store_true", help="搜索项目而非条目，匹配项目名、remote、description")
+    sub.add_parser("search", help="搜索条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+搜索知识库条目，从 stdin 读取 JSON。
+
+JSON 字段：
+  query    (必填)  搜索关键词，逗号分隔多关键词（OR 关系）
+  limit    (可选)  最大返回条数，默认 50
+  project  (可选)  搜索项目而非条目，默认 false
+
+示例：
+  vega search <<< '{"query": "editor"}'
+  vega search <<< '{"query": "Python, async", "limit": 20}'
+  vega search <<< '{"query": "Vega", "project": true}'""")
 
     # read
-    p = sub.add_parser("read", parents=[common], help="读取条目", description="读取条目的完整内容，直接输出 md 原文（含 frontmatter 和正文）")
-    p.add_argument("path", help="条目路径（相对于 data/）")
+    sub.add_parser("read", help="读取条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+读取条目完整内容，从 stdin 读取 JSON。
+
+JSON 字段：
+  path  (必填)  条目路径（相对于 data/，需带 .md 后缀）
+
+示例：
+  vega read <<< '{"path": "user/editor-preferences.md"}'""")
 
     # write
-    p = sub.add_parser("write", parents=[common], help="创建新条目", description="创建新条目。--description 和 --tags 必填，正文从 stdin 读取，例如: vega write path --description '描述' --tags '标签' <<< '正文'")
-    p.add_argument("path", help="条目路径（相对于 data/）")
-    p.add_argument("--description", required=True, help="条目描述（必填）")
-    p.add_argument("--tags", required=True, help="标签，逗号分隔（必填）")
+    sub.add_parser("write", help="创建新条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+创建新条目，从 stdin 读取 JSON。
+
+JSON 字段：
+  path         (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  description  (必填)  条目描述
+  tags         (必填)  标签数组
+  content      (必填)  正文内容
+
+同路径已存在时报错，请使用 edit 修改。
+写入新项目目录时自动创建 _index.md。
+
+示例：
+  vega write <<< '{"path": "projects/Vega/async.md", "description": "Python 异步编程", "tags": ["Python", "async", "并发"], "content": "# Python async\\n\\nasyncio 核心概念"}'""")
 
     # edit
-    p = sub.add_parser("edit", parents=[common], help="编辑已有条目，精确字符串替换", description="编辑已有条目，从 stdin 读取 JSON 格式的替换内容。JSON 必须包含 'old' 和 'new' 字段，可选 'replace_all' 字段")
-    p.add_argument("path", help="条目路径（相对于 data/）")
+    sub.add_parser("edit", help="编辑已有条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+编辑已有条目，从 stdin 读取 JSON。
+
+JSON 字段：
+  path         (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  old          (必填)  要替换的文本
+  new          (必填)  替换后的文本
+  replace_all  (可选)  替换所有匹配，默认 false
+
+示例：
+  vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧描述", "new": "新描述"}'
+  vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧词", "new": "新词", "replace_all": true}'""")
 
     # delete
-    p = sub.add_parser("delete", parents=[common], help="删除条目", description="删除指定条目")
-    p.add_argument("path", help="条目路径（相对于 data/）")
+    sub.add_parser("delete", help="删除条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+删除条目，从 stdin 读取 JSON。
 
-    # rebuild
-    sub.add_parser("rebuild", parents=[common], help="全量扫描", description="全量扫描 data/ 下所有 .md 文件")
+JSON 字段：
+  path  (必填)  条目路径（相对于 data/，需带 .md 后缀）
+
+示例：
+  vega delete <<< '{"path": "projects/Vega/old-note.md"}'""")
 
     # list
-    p = sub.add_parser("list", parents=[common], help="列出条目", description="列出所有条目，可按路径前缀过滤")
-    p.add_argument("prefix", nargs="?", default="", help="路径前缀过滤")
+    sub.add_parser("list", help="列出条目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+列出条目，从 stdin 读取 JSON。
+
+JSON 字段：
+  prefix  (可选)  路径前缀过滤，不填则列出全部
+
+示例：
+  vega list <<< '{}'
+  vega list <<< '{"prefix": "projects/Vega"}'
+  vega list <<< '{"prefix": "user"}'""")
+
+    # rebuild
+    sub.add_parser("rebuild", help="全量扫描", description="全量扫描 data/ 下所有 .md 文件")
 
     # check
-    sub.add_parser("check", parents=[common], help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性")
+    sub.add_parser("check", help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性")
 
     args = parser.parse_args()
     if args.command is None or args.command == "help":

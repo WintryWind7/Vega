@@ -19,15 +19,24 @@
 
 ## 命令
 
-通过 bash 执行以下命令（路径均为相对于 data/ 的相对路径，需带 .md 后缀）：
+所有命令通过 stdin 读取 JSON 参数。有必填字段的命令必须传入 JSON；全部字段可选或无字段的命令可以不传：
 
-- `vega search "关键词, 关键词"` — 搜索知识库条目，逗号分隔多关键词（OR 关系，子串匹配），匹配标题、标签、描述和路径，不搜正文
-- `vega list [路径前缀]` — 列出指定目录下的条目，如 `vega list projects/Vega` 或 `vega list user`。无参数时列出全部
-- `vega search --project "项目名"` — 模糊搜索项目，不确定项目名时使用
-- `vega read <路径>` — 读取条目，输出 md 原文
-- `vega write <路径> --description "描述" --tags "标签1,标签2"` — 创建新条目，正文从 stdin 读取。同路径已存在时会报错，应用 edit 修改。写入新项目时自动创建 `_index.md`
-- `vega edit <路径>` — 编辑已有条目，stdin 读取 JSON 格式的替换内容。JSON 必须包含 `old` 和 `new` 字段，可选 `replace_all` 字段。示例：`vega edit path <<< '{"old": "旧文本", "new": "新文本"}'`
-- `vega delete <路径>` — 删除条目
+```bash
+vega write <<< '{"path": "...", "description": "...", "tags": [...], "content": "..."}'
+vega list                    # 无需传 JSON，直接列出全部
+```
+
+- `vega init` — 初始化知识库。`{"data": "路径"}`（必填）
+- `vega search` — 搜索条目。`{"query": "关键词"}`（必填），`limit`（可选，默认 50），`project`（可选，默认 false，搜索项目而非条目）
+- `vega read` — 读取条目，输出 md 原文。`{"path": "路径"}`（必填）
+- `vega write` — 创建新条目。`{"path", "description", "tags", "content"}`（均必填）。同路径已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md`
+- `vega edit` — 编辑已有条目。`{"path", "old", "new"}`（必填），`replace_all`（可选，默认 false）
+- `vega delete` — 删除条目。`{"path": "路径"}`（必填）
+- `vega list` — 列出条目。`{"prefix": "路径前缀"}`（可选）。可不传 JSON，直接 `vega list`
+- `vega check` — 知识库自检。可不传 JSON
+- `vega rebuild` — 全量扫描。可不传 JSON
+
+路径均为相对于 data/ 的相对路径，需带 `.md` 后缀。
 
 ## 写入规范
 
