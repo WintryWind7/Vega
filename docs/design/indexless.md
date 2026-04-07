@@ -33,7 +33,8 @@ Vega 不使用 index.json 索引文件，search 命令直接扫描 .md 文件、
 
 ## 影响
 
-- **去掉**：index.json、index 模块、rebuild 命令、list 命令、check 中的索引一致性检查
+- **去掉**：index.json、index 模块的持久化功能、check 中的索引一致性检查
+- **改造**：rebuild（改为全量扫描）、list（改为即时扫描）
 - **简化**：write（只写文件）、delete（只删文件）、search（直接扫描）
 - **init**：不再创建 index.json
 - **edit**：保留为 AI 提供便利的编辑接口，无需同步索引

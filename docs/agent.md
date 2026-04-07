@@ -1,35 +1,34 @@
-# Vega — AI Agent 指引
+# Vega — AI 开发指引
+
+> 本文档面向 AI 编写，为 AI 首次接触项目时提供快速引导。如果你是人类，建议让 AI 阅读后为你分析。
 
 ## 项目简介
 
-Vega 是一个 AI 优先的个人知识库，用于跨项目持久存储和检索知识。主要读写方是 AI，人偶尔介入。
+Vega 是一个 AI 优先的个人知识库 CLI，用于跨项目持久存储和检索知识。主要读写方是 AI，人偶尔介入。
 
-详细的设计理念和决策记录在以下文档中：
+## 源码结构
 
-- [使用说明](usage.md) — 安装、命令用法、AI 接入方式
-- [设计理念](design/philosophy.md) — 为什么这样设计，痛点是什么
-- [探讨过的方式](design/approaches.md) — 考虑过哪些方案，为什么选择现在的方案
-- [无索引方案](design/indexless.md) — 为什么去掉持久索引，性能数据
-- [文档规范](design/document-spec.md) — 知识条目的格式定义
-- [CLI 设计思路](design/cli-design.md) — 接口设计原则
+`src/vega/` 下共 5 个模块，全部纯标准库，零外部依赖：
 
-## 知识库结构
+| 模块 | 职责 |
+|---|---|
+| `cli.py` | 命令入口，参数解析，各命令的流程控制 |
+| `parser.py` | frontmatter 解析/生成/校验 |
+| `storage.py` | 文件读写封装，自动创建目录/清理空目录 |
+| `index.py` | 即时扫描搜索，无持久索引 |
+| `check.py` | 知识库自检，格式校验 + 键统计 |
 
-知识库数据位于 `data/` 目录（不纳入版本控制）：
+构建方式：`uv tool install -e .`
 
-```
-data/
-  projects/        # AI 存储的项目记忆（按项目名分目录）
-  user/            # 用户的个人偏好和文档
-```
+## 设计文档
 
-## 操作要点
+改动前建议先读对应的设计文档，理解决策背景：
 
-- 每个知识条目是一个 Markdown 文件，包含 YAML frontmatter（description、tags）和正文，标题从文件名推断
-- AI 通过 bash 调用 CLI 命令操作，首次使用需 `vega init --data <路径>` 初始化，路径保存在 `~/.vega/settings.json`
-- search 即时扫描所有文件进行检索，无需维护索引，多关键词 OR 关系，子串匹配，不搜正文
-- write 创建新条目（description 和 tags 必填，正文从 stdin 读取），同路径已存在时报错，写入新项目时自动创建 `_index.md`
-- edit 从 stdin 读取 JSON 格式的替换内容（必须包含 old 和 new 字段）
-- list 列出指定目录下的条目，可按路径前缀过滤
-- search --project 模糊搜索项目名，不确定项目名时使用，匹配 `_index.md` 中的 name、remote、description
-- 人可以直接编辑 Markdown 文件，不影响使用
+| 文档 | 内容 | 什么时候读 |
+|---|---|---|
+| [设计理念](design/philosophy.md) | 为什么这样设计，痛点是什么 | 首次接触项目 |
+| [CLI 设计思路](design/cli-design.md) | 命令接口设计原则 | 改命令接口或加新命令 |
+| [无索引方案](design/indexless.md) | 为什么去掉持久索引，性能数据 | 改搜索逻辑 |
+| [文档规范](design/document-spec.md) | 知识条目的格式定义 | 改 frontmatter 或条目格式 |
+| [探讨过的方式](design/approaches.md) | 考虑过哪些方案，为什么没选 | 想改架构时 |
+| [使用说明](usage.md) | 命令用法和示例 | 了解用户侧怎么用 |
