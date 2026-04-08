@@ -27,7 +27,7 @@ vega list                    # 无需传 JSON，直接列出全部
 ```
 
 - `vega init` — 初始化知识库。`{"data": "路径"}`（必填）
-- `vega search` — 搜索条目。`{"query": "关键词"}`（必填），`limit`（可选，默认 50），`project`（可选，默认 false，搜索项目而非条目）
+- `vega search` — 搜索条目。`{"query": "关键词，逗号分隔"}`（必填），`limit`（可选，默认 50），`project`（可选，默认 false，搜索项目而非条目）
 - `vega read` — 读取条目，输出 md 原文。`{"path": "路径"}`（必填）
 - `vega write` — 创建新条目。`{"path", "description", "tags", "content"}`（均必填）。同路径已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md`
 - `vega edit` — 编辑已有条目。`{"path", "old", "new"}`（必填），`replace_all`（可选，默认 false）
