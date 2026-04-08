@@ -1,10 +1,11 @@
-"""自检模块，扫描知识库的格式和键统计。"""
+"""自检模块，扫描知识库的格式、键统计和索引一致性。"""
 
 import os
 from collections import Counter
 
 from .parser import validate
 from .storage import list_entries, read_entry
+from .index import load_index
 
 
 def run(data_dir: str) -> str:
@@ -30,6 +31,13 @@ def run(data_dir: str) -> str:
             key_counter.update(entry["meta"].keys())
         except Exception:
             pass
+
+    # 索引一致性
+    index = load_index(data_dir)
+    indexed_paths = {e["path"] for e in index["entries"]}
+    actual_paths = set(files)
+    missing_from_index = actual_paths - indexed_paths
+    extra_in_index = indexed_paths - actual_paths
 
     # 生成报告
     passed = total - len(format_errors)
@@ -63,11 +71,26 @@ def run(data_dir: str) -> str:
                 stats.append(f"{key}: {count}")
         lines.append("  " + ", ".join(stats))
 
+    # 索引一致性
+    lines.append("")
+    if missing_from_index or extra_in_index:
+        issues = len(missing_from_index) + len(extra_in_index)
+        lines.append(f"[索引一致] {issues} 个异常")
+        for p in sorted(missing_from_index):
+            lines.append(f"  缺失: {p}")
+        for p in sorted(extra_in_index):
+            lines.append(f"  多余: {p}")
+        lines.append("  建议: 运行 vega rebuild 重建索引")
+    else:
+        lines.append("[索引一致] 全部通过")
+
     # 总结
     lines.append("")
-    if len(format_errors) == 0:
+    has_issues = format_errors or missing_from_index or extra_in_index
+    if not has_issues:
         lines.append("结果: 全部通过")
     else:
-        lines.append(f"结果: {passed} 通过, {len(format_errors)} 异常")
+        issue_count = len(format_errors) + len(missing_from_index) + len(extra_in_index)
+        lines.append(f"结果: {total - len(format_errors)} 通过, {issue_count} 异常")
 
     return "\n".join(lines)

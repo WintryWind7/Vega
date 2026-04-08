@@ -1,8 +1,27 @@
-"""搜索模块，即时扫描文件进行检索，无持久索引。"""
+"""索引管理模块，维护 index.json 的读写和检索。"""
 
+import json
 import os
 
-from .storage import read_entry, list_entries
+from .storage import read_entry, list_entries, _atomic_write
+
+
+INDEX_FILE = "index.json"
+
+
+def load_index(data_dir: str) -> dict:
+    """加载索引，不存在则返回空索引。"""
+    path = os.path.join(data_dir, INDEX_FILE)
+    if not os.path.exists(path):
+        return {"entries": []}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_index(data_dir: str, index: dict) -> None:
+    """原子保存索引。"""
+    path = os.path.join(data_dir, INDEX_FILE)
+    _atomic_write(path, json.dumps(index, ensure_ascii=False, indent=2))
 
 
 def _make_entry(rel_path: str, meta: dict) -> dict:
@@ -16,8 +35,30 @@ def _make_entry(rel_path: str, meta: dict) -> dict:
     }
 
 
-def load_index(data_dir: str) -> dict:
-    """即时扫描所有条目，返回兼容格式。"""
+def add_or_update(data_dir: str, rel_path: str, meta: dict) -> None:
+    """添加或更新索引中的条目。"""
+    index = load_index(data_dir)
+    entry = _make_entry(rel_path, meta)
+
+    for i, e in enumerate(index["entries"]):
+        if e["path"] == rel_path:
+            index["entries"][i] = entry
+            break
+    else:
+        index["entries"].append(entry)
+
+    save_index(data_dir, index)
+
+
+def remove(data_dir: str, rel_path: str) -> None:
+    """从索引中移除条目。"""
+    index = load_index(data_dir)
+    index["entries"] = [e for e in index["entries"] if e["path"] != rel_path]
+    save_index(data_dir, index)
+
+
+def rebuild(data_dir: str) -> dict:
+    """全量重建索引，扫描 data_dir 下所有 .md 文件。"""
     entries = []
     for rel_path in list_entries(data_dir):
         full_path = os.path.join(data_dir, rel_path)
@@ -26,33 +67,25 @@ def load_index(data_dir: str) -> dict:
             entries.append(_make_entry(rel_path, result["meta"]))
         except Exception:
             continue
-    return {"entries": entries}
 
-
-def rebuild(data_dir: str) -> dict:
-    """全量扫描条目，返回统计信息。"""
-    return load_index(data_dir)
+    index = {"entries": entries}
+    save_index(data_dir, index)
+    return index
 
 
 def search(data_dir: str, query: str, limit: int = 50) -> list:
-    """搜索条目，即时扫描文件，广泛召回。
+    """搜索索引，广泛召回。
 
     支持逗号分隔多关键词，按 path/title/tags/description 匹配。
     返回 score > 0 的结果，按相关度降序排列，最多 limit 条。
     """
+    index = load_index(data_dir)
     keywords = [kw.strip().lower() for kw in query.split(",") if kw.strip()]
     results = []
 
-    for rel_path in list_entries(data_dir):
-        full_path = os.path.join(data_dir, rel_path)
-        try:
-            result = read_entry(full_path)
-            meta = result["meta"]
-        except Exception:
-            continue
-
-        entry = _make_entry(rel_path, meta)
+    for entry in index["entries"]:
         score = 0
+        path = entry["path"].lower()
         title = entry["title"].lower()
         desc = entry["description"].lower()
         tags = [t.lower() for t in entry.get("tags", [])]
@@ -65,7 +98,7 @@ def search(data_dir: str, query: str, limit: int = 50) -> list:
                     score += 2
             if kw in desc:
                 score += 1
-            if kw in entry["path"].lower():
+            if kw in path:
                 score += 1
 
         if score > 0:

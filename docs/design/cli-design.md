@@ -44,7 +44,7 @@ AI 通过 bash 工具执行 `vega` 命令，不需要封装为 MCP tool。接入
 | `vega rebuild` | JSON | — | — |
 | `vega help` | 可读文本 | — | — |
 
-write、edit、delete 无需维护索引，search 即时扫描文件。详见[无索引方案](indexless.md)。
+write、edit、delete 同步维护索引，search 从索引读取。详见[索引方案](index.md)。
 
 ## 接口设计原则
 

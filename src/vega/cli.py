@@ -5,9 +5,9 @@ import json
 import os
 import sys
 
-from .storage import write_entry, delete_entry
+from .storage import write_entry, read_entry, delete_entry, _atomic_write
 from .parser import parse
-from .index import load_index, rebuild, search
+from .index import load_index, rebuild, search, add_or_update, remove
 from .check import run as check_run
 
 
@@ -216,6 +216,7 @@ def cmd_write(args):
                     f.write(index_content)
 
     write_entry(full_path, meta, content)
+    add_or_update(data_dir, rel_path, meta)
 
     if new_project:
         project_name = rel_path.split("/")[1]
@@ -273,8 +274,14 @@ def cmd_edit(args):
     else:
         text = text.replace(old, new, 1)
 
-    with open(full_path, "w", encoding="utf-8") as f:
-        f.write(text)
+    _atomic_write(full_path, text)
+
+    # 重新解析文件更新索引
+    try:
+        result = read_entry(full_path)
+        add_or_update(data_dir, path, result["meta"])
+    except Exception:
+        pass
 
     print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
@@ -296,6 +303,7 @@ def cmd_delete(args):
         sys.exit(1)
 
     delete_entry(full_path)
+    remove(data_dir, path)
 
     print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
