@@ -4,6 +4,21 @@ import os
 from .parser import parse, dump
 
 
+def _atomic_write(path: str, content: str) -> None:
+    """原子写入文件，先写临时文件再替换，确保数据落盘。"""
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+
 def read_entry(path: str) -> dict:
     """读取条目，返回解析后的 dict。"""
     with open(path, "r", encoding="utf-8") as f:
@@ -11,11 +26,10 @@ def read_entry(path: str) -> dict:
 
 
 def write_entry(path: str, meta: dict, content: str) -> None:
-    """写入条目，自动创建父目录。先组装内容再写文件，避免残留空文件。"""
+    """写入条目，自动创建父目录，原子写入。"""
     text = dump(meta, content)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text)
+    _atomic_write(path, text)
 
 
 def delete_entry(path: str) -> None:
