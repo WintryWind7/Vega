@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # Vega Agent Review — 让 AI 自由探索 Vega 并给出体验反馈
-# 用法: bash agent-review/agent-review-test.sh
+# 用法: bash agent-review/agent-review-test.sh [-n 次数]
 
 set -euo pipefail
+
+ROUNDS=1
+while getopts "n:" opt; do
+    case $opt in
+        n) ROUNDS="$OPTARG" ;;
+        *) ;;
+    esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
@@ -36,13 +44,25 @@ run_one() {
 
     log "测试: $prompt_name"
 
+    # 拼接 prompt + _ 开头的共享片段
+    local combined
+    combined=$(mktemp)
+    cat "$prompt_file" > "$combined"
+    for snippet in "$PROMPTS_DIR"/_*.md; do
+        [[ -f "$snippet" ]] || continue
+        echo -e "\n---\n" >> "$combined"
+        cat "$snippet" >> "$combined"
+    done
+
     # 调用 opencode run
     exit_code=0
-    cat "$prompt_file" | opencode run \
+    cat "$combined" | opencode run \
         --format json \
         -m "bailian-coding-plan/glm-5" \
         2>"$output_dir/${prompt_name}-stderr.log" \
         > "$stream_file" || exit_code=$?
+
+    rm -f "$combined"
 
     if [[ $exit_code -ne 0 ]]; then
         fail "$prompt_name: opencode run 退出码 $exit_code"
@@ -91,22 +111,40 @@ run_id=$(date +%Y%m%d-%H%M%S)
 run_dir="$RESULTS_DIR/$run_id"
 mkdir -p "$run_dir"
 
-# 遍历所有 prompt
-prompt_count=0
-fail_count=0
-for prompt_file in "$PROMPTS_DIR"/*.md; do
-    [[ -f "$prompt_file" ]] || continue
-    run_one "$prompt_file" "$run_dir" || fail_count=$((fail_count + 1))
-    prompt_count=$((prompt_count + 1))
+total_prompt_count=0
+total_fail_count=0
+
+for ((round=1; round<=ROUNDS; round++)); do
+    if [[ $ROUNDS -gt 1 ]]; then
+        log "=== 第 ${round}/${ROUNDS} 轮 ==="
+        round_dir="$run_dir/round-${round}"
+        mkdir -p "$round_dir"
+    else
+        round_dir="$run_dir"
+    fi
+
+    prompt_count=0
+    fail_count=0
+    for prompt_file in "$PROMPTS_DIR"/*.md; do
+        [[ -f "$prompt_file" ]] || continue
+        # _ 开头的是共享片段，不是独立 prompt
+        [[ "$(basename "$prompt_file")" == _* ]] && continue
+        run_one "$prompt_file" "$round_dir" || fail_count=$((fail_count + 1))
+        prompt_count=$((prompt_count + 1))
+    done
+
+    if [[ $prompt_count -eq 0 ]]; then
+        fail "prompts/ 下没有找到 .md 文件"
+        exit 1
+    fi
+
+    total_prompt_count=$((total_prompt_count + prompt_count))
+    total_fail_count=$((total_fail_count + fail_count))
 done
 
-if [[ $prompt_count -eq 0 ]]; then
-    fail "prompts/ 下没有找到 .md 文件"
-    exit 1
-fi
-
 echo ""
-echo "=== 本轮测试 ==="
-echo "  运行: $prompt_count 个提示词"
-echo "  失败: $fail_count"
+echo "=== 测试完成 ==="
+echo "  轮次: $ROUNDS"
+echo "  总运行: $total_prompt_count 个提示词"
+echo "  总失败: $total_fail_count"
 echo "  输出: $run_dir"
