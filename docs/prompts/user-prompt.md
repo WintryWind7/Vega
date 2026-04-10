@@ -2,50 +2,82 @@
 
 我为你配置了一个外置知识库 Vega，用于跨项目持久存储和检索知识。你可以通过 bash 调用 `vega` 命令操作。
 
-## 什么时候用
+## 什么时候读
 
-- 需要记住跨项目的知识（设计决策、踩坑经验、技术偏好）
-- 需要检索过去记录的知识
-- 需要存储用户的个人偏好或配置习惯
+- 新话题或新任务开始时，先搜一下有没有相关记录
+- 用户提到"之前记过"、"上次说过"时搜索
+- 不确定用户偏好或历史决策时，搜索相关关键词
+
+## 什么时候写
+
+- 用户明确要求存到 Vega 时，直接写
+- 任务完成或提交后，主动询问是否需要将过程中的设计决策、踩坑经验等写入 Vega，给出建议的 path 和内容
+- 长讨论得出有价值结论后，主动询问是否需要记录
+
+不要自己决定写入。每次写入都应经过用户确认。
+
+## 什么不该存
+
+- 代码片段或具体实现细节 — 代码本身就是记录
+- git 历史、recent changes — `git log` 是权威来源
+- 调试过程和临时状态 — 对话结束就过期
+- 项目结构、文件路径、约定 — 可以从代码直接看到
 
 ## 目录结构
 
 所有路径相对于知识库根目录（data/）：
 
-- `projects/<项目名>/` — 项目记忆，项目名与 git 仓库名保持一致
+- `projects/<项目名>/` — 项目相关知识，项目名与 git 仓库名保持一致
 - `user/` — 个人偏好和配置
 
 路径示例：`projects/Vega/async-programming.md`、`user/editor-preferences.md`
 
-## 命令
-
-所有命令通过 stdin 读取 JSON 参数。有必填字段的命令必须传入 JSON；全部字段可选或无字段的命令可以不传：
-
-```bash
-vega write <<< '{"path": "...", "description": "...", "tags": [...], "content": "..."}'
-vega list                    # 无需传 JSON，直接列出全部
-```
-
-- `vega init` — 初始化知识库。`{"data": "路径"}`（必填）
-- `vega search` — 搜索条目。`{"query": "关键词，逗号分隔", "type": "file"}`（query 必填），`limit`（可选，默认 50），`type`（可选，`"file"` 条目或 `"project"` 项目元信息，默认 `"file"`）
-- `vega read` — 读取条目，输出 md 原文。`{"path": "路径"}`（必填）
-- `vega write` — 创建新条目。`{"path", "description", "tags", "content"}`（均必填）。同路径已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md`
-- `vega edit` — 编辑已有条目。`{"path", "old", "new"}`（必填），`replace_all`（可选，默认 false）
-- `vega delete` — 删除条目或项目。`{"path": "路径"}`（必填）。条目路径带 `.md` 后缀，项目路径以 `/` 结尾
-- `vega move` — 移动/重命名条目或项目。`{"from", "to"}`（均必填）。条目路径带 `.md` 后缀，项目路径以 `/` 结尾
-- `vega list` — 列出条目。`{"prefix": "路径前缀"}`（可选）。可不传 JSON，直接 `vega list`
-- `vega check` — 知识库自检。可不传 JSON
-- `vega rebuild` — 全量扫描。可不传 JSON
-
-路径均为相对于 data/ 的相对路径，需带 `.md` 后缀。
-
 ## 写入规范
 
-- description 和 tags 必填
-- description：一到两句话概括内容，你只看这个判断是否需要读正文
-- tags：用名词或名词短语，具体可搜索，同时标中英文（如 `Python, 并发, async`）
-- 存意图不存实现，不存具体代码
+description 和 tags 必填。
 
-## 首次使用
+### 写入流程
 
-如果 `vega` 命令报错提示未初始化，运行 `vega init --help` 查看初始化方式。
+write 或 edit 前先搜索是否已有相关条目或项目目录，避免重复或分散存储。如果不确定要存什么，或认为存的内容与写入规范有冲突，向用户询问以确保充分理解意图。
+
+### 粒度
+
+一个条目围绕一个方面——一个设计决策、一个踩坑经验、一组相关偏好。当一个条目的内容超出 description 能概括的范围时，应拆分为多个条目。
+
+### description
+
+写这条记录讲了什么。description 是搜索结果的唯一预览，AI 靠它判断是否需要 read 正文。因此要足够具体：`Python asyncio 中 gather 与 TaskGroup 的区别和选坑经验` 比 `关于 Python 异步的笔记` 有用。包含具体实现时需注明，如 `包含原子写入的具体实现`。
+
+### tags
+
+从内容中提取专业术语和核心技术概念，中英文标注。tags 的作用是跨语言检索：description 里写了"异步"，tags 补上 `async`。
+
+### body
+
+记录设计意图、决策原因、关键认知。不存具体代码，除非实现本身独特且值得保留（例如分析源码、code review 时记录的实现），此时 description 需注明包含实现。
+
+### 文件排布
+
+projects/ 按项目名分目录，一个条目一个文件。user/ 按主题分文件，内容少的偏好可以合并在一个文件里。
+
+## 条目可能过时
+
+条目是写入时的快照，内容可能已变化。对关键信息（路径、函数名、配置值）使用前应验证当前状态。
+
+## 命令
+
+所有命令通过 stdin 读取 JSON 参数。有必填字段的命令必须传入 JSON；全部字段可选或无字段的命令可以不传。
+
+| 命令 | 必填字段 | 可选字段 | 说明 |
+|---|---|---|---|
+| `vega search` | query | limit（默认 50）、type（默认 "file"，可选 "project"） | 搜索条目，query 逗号分隔多关键词（OR 关系） |
+| `vega read` | path | — | 读取条目，输出 md 原文 |
+| `vega write` | path、description、tags、content | — | 创建新条目。已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md` |
+| `vega edit` | path、old、new | replace_all（默认 false） | 编辑已有条目，精确字符串替换 |
+| `vega delete` | path | — | 删除条目（`.md` 后缀）或项目（路径以 `/` 结尾） |
+| `vega move` | from、to | — | 移动/重命名条目或项目 |
+| `vega list` | — | prefix（默认空） | 列出条目，可不传 JSON |
+
+路径示例：`projects/Vega/async.md`。不确定路径时用 search 或 list 查看已有条目的路径格式。
+
+不确定命令用法时用 `vega <command> --help` 查看详细说明。如遇未知错误可以尝试 `vega help`。
