@@ -32,6 +32,7 @@ vega list                    # 无需传 JSON，直接列出全部
 - `vega write` — 创建新条目。`{"path", "description", "tags", "content"}`（均必填）。同路径已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md`
 - `vega edit` — 编辑已有条目。`{"path", "old", "new"}`（必填），`replace_all`（可选，默认 false）
 - `vega delete` — 删除条目。`{"path": "路径"}`（必填）
+- `vega move` — 移动/重命名条目或项目。`{"from", "to"}`（均必填）。条目路径带 `.md` 后缀，项目路径以 `/` 结尾
 - `vega list` — 列出条目。`{"prefix": "路径前缀"}`（可选）。可不传 JSON，直接 `vega list`
 - `vega check` — 知识库自检。可不传 JSON
 - `vega rebuild` — 全量扫描。可不传 JSON

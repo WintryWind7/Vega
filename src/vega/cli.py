@@ -7,7 +7,7 @@ import sys
 
 from .storage import write_entry, read_entry, delete_entry, _atomic_write
 from .parser import parse
-from .index import load_index, rebuild, search, add_or_update, remove
+from .index import load_index, save_index, rebuild, search, add_or_update, remove
 from .check import run as check_run
 
 
@@ -312,6 +312,100 @@ def cmd_delete(args):
     print(json.dumps({"status": "ok", "path": path, "content": content}, ensure_ascii=False))
 
 
+def cmd_move(args):
+    """移动/重命名条目或项目，从 stdin 读取 JSON。"""
+    data_dir = _require_data_dir()
+    data = _read_stdin_json()
+
+    from_path = data.get("from", "").replace("\\", "/")
+    to_path = data.get("to", "").replace("\\", "/")
+
+    if not from_path or not to_path:
+        print(json.dumps({"error": "from 和 to 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if from_path == to_path:
+        print(json.dumps({"error": "from 和 to 不能相同"}, ensure_ascii=False))
+        sys.exit(1)
+
+    src_full = os.path.join(data_dir, from_path)
+    dst_full = os.path.join(data_dir, to_path)
+
+    if not os.path.exists(src_full):
+        print(json.dumps({"error": f"路径不存在: {from_path}"}, ensure_ascii=False))
+        sys.exit(1)
+
+    if os.path.exists(dst_full):
+        print(json.dumps({"error": f"目标路径已存在: {to_path}"}, ensure_ascii=False))
+        sys.exit(1)
+
+    # 项目级移动（路径以 / 结尾）
+    is_project = from_path.endswith("/") or to_path.endswith("/")
+    if is_project:
+        from_dir = src_full.rstrip("/\\")
+        to_dir = dst_full.rstrip("/\\")
+
+        # 源必须是目录
+        if not os.path.isdir(from_dir):
+            print(json.dumps({"error": "项目移动要求源路径为目录"}, ensure_ascii=False))
+            sys.exit(1)
+
+        # 收集移动前的条目相对路径
+        old_prefix = from_path.rstrip("/")
+        index = load_index(data_dir)
+        affected = [e for e in index["entries"] if e["path"].startswith(old_prefix + "/")]
+
+        os.makedirs(os.path.dirname(to_dir), exist_ok=True)
+        os.rename(from_dir, to_dir)
+
+        # 更新 _index.md 中的 name（如果项目名变了）
+        old_name = os.path.basename(from_dir)
+        new_name = os.path.basename(to_dir)
+        if old_name != new_name:
+            index_file = os.path.join(to_dir, "_index.md")
+            if os.path.isfile(index_file):
+                with open(index_file, "r", encoding="utf-8") as f:
+                    text = f.read()
+                text = text.replace(f"name: {old_name}", f"name: {new_name}")
+                _atomic_write(index_file, text)
+                # 同时更新标题
+                text = text.replace(f"# {old_name}", f"# {new_name}")
+                _atomic_write(index_file, text)
+
+        # 批量更新索引
+        new_prefix = to_path.rstrip("/")
+        for entry in affected:
+            entry["path"] = new_prefix + entry["path"][len(old_prefix):]
+
+        save_index(data_dir, index)
+
+        print(json.dumps({
+            "status": "ok",
+            "from": from_path,
+            "to": to_path,
+            "entries_moved": len(affected),
+        }, ensure_ascii=False))
+    else:
+        # 条目级移动
+        os.makedirs(os.path.dirname(dst_full), exist_ok=True)
+        os.rename(src_full, dst_full)
+
+        # 更新索引：先移除旧路径，再添加新路径
+        remove(data_dir, from_path)
+        try:
+            result = read_entry(dst_full)
+            add_or_update(data_dir, to_path, result["meta"])
+        except Exception:
+            pass
+
+        # 清理源空目录
+        src_dir = os.path.dirname(src_full)
+        if os.path.isdir(src_dir) and not os.listdir(src_dir):
+            os.rmdir(src_dir)
+
+        print(json.dumps({"status": "ok", "from": from_path, "to": to_path}, ensure_ascii=False))
+
+
 def cmd_rebuild(args):
     """重建索引。"""
     data_dir = _require_data_dir()
@@ -451,6 +545,24 @@ JSON 字段：
 示例：
   vega delete <<< '{"path": "projects/Vega/old-note.md"}'""")
 
+    # move
+    sub.add_parser("move", help="移动/重命名条目或项目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""\
+移动或重命名条目/项目，从 stdin 读取 JSON。
+
+JSON 字段：
+  from  (必填)  源路径（相对于 data/）
+  to    (必填)  目标路径（相对于 data/）
+
+条目路径带 .md 后缀，项目路径以 / 结尾。
+目标路径已存在时报错。
+
+示例：
+  vega move <<< '{"from": "projects/Vega/async.md", "to": "projects/Vega/concurrency.md"}'
+  vega move <<< '{"from": "projects/Vega/", "to": "projects/Vega2/"}'
+  vega move <<< '{"from": "user/note.md", "to": "projects/Vega/note.md"}'""")
+
     # list
     sub.add_parser("list", help="列出条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -483,6 +595,7 @@ JSON 字段：
         "write": cmd_write,
         "edit": cmd_edit,
         "delete": cmd_delete,
+        "move": cmd_move,
         "rebuild": cmd_rebuild,
         "list": cmd_list,
         "check": cmd_check,
