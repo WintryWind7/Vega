@@ -378,8 +378,6 @@ def cmd_move(args):
                 with open(index_file, "r", encoding="utf-8") as f:
                     text = f.read()
                 text = text.replace(f"name: {old_name}", f"name: {new_name}")
-                _atomic_write(index_file, text)
-                # 同时更新标题
                 text = text.replace(f"# {old_name}", f"# {new_name}")
                 _atomic_write(index_file, text)
 
