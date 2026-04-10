@@ -287,21 +287,42 @@ def cmd_edit(args):
 
 
 def cmd_delete(args):
-    """删除条目，从 stdin 读取 JSON。"""
+    """删除条目或项目，从 stdin 读取 JSON。"""
+    import shutil
+
     data_dir = _require_data_dir()
     data = _read_stdin_json()
 
-    path = data.get("path", "")
+    path = data.get("path", "").replace("\\", "/")
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
-    full_path = os.path.join(data_dir, path)
+    full_path = os.path.join(data_dir, path.rstrip("/"))
 
     if not os.path.exists(full_path):
-        print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
+        print(json.dumps({"error": f"路径不存在: {path}"}, ensure_ascii=False))
         sys.exit(1)
 
+    # 项目级删除（实际路径为目录）
+    if os.path.isdir(full_path):
+        project_prefix = path.rstrip("/")
+        index = load_index(data_dir)
+        deleted_entries = [e for e in index["entries"] if e["path"].startswith(project_prefix + "/")]
+
+        shutil.rmtree(full_path)
+
+        index["entries"] = [e for e in index["entries"] if not e["path"].startswith(project_prefix + "/")]
+        save_index(data_dir, index)
+
+        print(json.dumps({
+            "status": "ok",
+            "path": path,
+            "entries_deleted": len(deleted_entries),
+        }, ensure_ascii=False))
+        return
+
+    # 条目级删除
     # 删除前读取内容，用于返回确认信息
     with open(full_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -328,8 +349,8 @@ def cmd_move(args):
         print(json.dumps({"error": "from 和 to 不能相同"}, ensure_ascii=False))
         sys.exit(1)
 
-    src_full = os.path.join(data_dir, from_path)
-    dst_full = os.path.join(data_dir, to_path)
+    src_full = os.path.join(data_dir, from_path.rstrip("/"))
+    dst_full = os.path.join(data_dir, to_path.rstrip("/"))
 
     if not os.path.exists(src_full):
         print(json.dumps({"error": f"路径不存在: {from_path}"}, ensure_ascii=False))
@@ -339,30 +360,20 @@ def cmd_move(args):
         print(json.dumps({"error": f"目标路径已存在: {to_path}"}, ensure_ascii=False))
         sys.exit(1)
 
-    # 项目级移动（路径以 / 结尾）
-    is_project = from_path.endswith("/") or to_path.endswith("/")
-    if is_project:
-        from_dir = src_full.rstrip("/\\")
-        to_dir = dst_full.rstrip("/\\")
-
-        # 源必须是目录
-        if not os.path.isdir(from_dir):
-            print(json.dumps({"error": "项目移动要求源路径为目录"}, ensure_ascii=False))
-            sys.exit(1)
-
-        # 收集移动前的条目相对路径
+    # 项目级移动（源路径为目录）
+    if os.path.isdir(src_full):
         old_prefix = from_path.rstrip("/")
         index = load_index(data_dir)
         affected = [e for e in index["entries"] if e["path"].startswith(old_prefix + "/")]
 
-        os.makedirs(os.path.dirname(to_dir), exist_ok=True)
-        os.rename(from_dir, to_dir)
+        os.makedirs(os.path.dirname(dst_full), exist_ok=True)
+        os.rename(src_full, dst_full)
 
         # 更新 _index.md 中的 name（如果项目名变了）
-        old_name = os.path.basename(from_dir)
-        new_name = os.path.basename(to_dir)
+        old_name = os.path.basename(src_full)
+        new_name = os.path.basename(dst_full)
         if old_name != new_name:
-            index_file = os.path.join(to_dir, "_index.md")
+            index_file = os.path.join(dst_full, "_index.md")
             if os.path.isfile(index_file):
                 with open(index_file, "r", encoding="utf-8") as f:
                     text = f.read()
@@ -534,16 +545,17 @@ JSON 字段：
   vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧词", "new": "新词", "replace_all": true}'""")
 
     # delete
-    sub.add_parser("delete", help="删除条目",
+    sub.add_parser("delete", help="删除条目或项目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
-删除条目，从 stdin 读取 JSON。
+删除条目或项目，从 stdin 读取 JSON。
 
 JSON 字段：
-  path  (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  path  (必填)  条目路径（相对于 data/，带 .md 后缀）或项目路径（以 / 结尾）
 
 示例：
-  vega delete <<< '{"path": "projects/Vega/old-note.md"}'""")
+  vega delete <<< '{"path": "projects/Vega/old-note.md"}'
+  vega delete <<< '{"path": "projects/OldProject/"}'""")
 
     # move
     sub.add_parser("move", help="移动/重命名条目或项目",
