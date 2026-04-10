@@ -75,9 +75,9 @@ def cmd_search(args):
 
     query = data.get("query", "")
     limit = data.get("limit", 50)
-    project = data.get("project", False)
+    search_type = data.get("type", "file")
 
-    if project:
+    if search_type == "project":
         keywords = [kw.strip().lower() for kw in query.split(",") if kw.strip()]
         projects_dir = os.path.join(data_dir, "projects")
         results = []
@@ -386,12 +386,12 @@ JSON 字段：
 JSON 字段：
   query    (必填)  搜索关键词，逗号分隔多关键词（OR 关系）
   limit    (可选)  最大返回条数，默认 50
-  project  (可选)  搜索项目而非条目，默认 false
+  type     (可选)  搜索类型："file"（条目）或 "project"（项目），默认 "file"
 
 示例：
-  vega search <<< '{"query": "editor"}'
-  vega search <<< '{"query": "Python, async", "limit": 20}'
-  vega search <<< '{"query": "Vega", "project": true}'""")
+  vega search <<< '{"query": "editor", "type": "file"}'
+  vega search <<< '{"query": "Python, async", "type": "file", "limit": 20}'
+  vega search <<< '{"query": "Vega", "type": "project"}'""")
 
     # read
     sub.add_parser("read", help="读取条目",
