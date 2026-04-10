@@ -459,7 +459,11 @@ def main():
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8")
 
-    parser = argparse.ArgumentParser(prog="vega", description="Vega 知识库 CLI")
+    parser = argparse.ArgumentParser(
+        prog="vega",
+        description="Vega 知识库 CLI。所有命令通过 stdin 读取 JSON 参数。",
+        epilog="路径示例：projects/Vega/async.md、user/editor-preferences.md。不确定路径时用 list 查看。",
+    )
     sub = parser.add_subparsers(dest="command")
 
     # help
@@ -478,7 +482,7 @@ JSON 字段：
   vega init <<< '{"data": "~/vega-data"}'
   vega init <<< '{"data": "D:/Vega/data"}'
 
-注意：AI 务必向用户确认 data 目录路径，不要自行决定。""")
+注意：务必向用户确认 data 目录路径，不要自行决定。""")
 
     # search
     sub.add_parser("search", help="搜索条目",
@@ -503,7 +507,7 @@ JSON 字段：
 读取条目完整内容，从 stdin 读取 JSON。
 
 JSON 字段：
-  path  (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  path  (必填)  条目路径，如 projects/Vega/async.md
 
 示例：
   vega read <<< '{"path": "user/editor-preferences.md"}'""")
@@ -515,7 +519,7 @@ JSON 字段：
 创建新条目，从 stdin 读取 JSON。
 
 JSON 字段：
-  path         (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  path         (必填)  条目路径，如 projects/Vega/async.md
   description  (必填)  条目描述
   tags         (必填)  标签数组
   content      (必填)  正文内容
@@ -533,7 +537,7 @@ JSON 字段：
 编辑已有条目，从 stdin 读取 JSON。
 
 JSON 字段：
-  path         (必填)  条目路径（相对于 data/，需带 .md 后缀）
+  path         (必填)  条目路径，如 projects/Vega/async.md
   old          (必填)  要替换的文本
   new          (必填)  替换后的文本
   replace_all  (可选)  替换所有匹配，默认 false
@@ -549,7 +553,7 @@ JSON 字段：
 删除条目或项目，从 stdin 读取 JSON。
 
 JSON 字段：
-  path  (必填)  条目路径（相对于 data/，带 .md 后缀）或项目路径（以 / 结尾）
+  path  (必填)  条目路径（如 projects/Vega/note.md）或项目路径（以 / 结尾，如 projects/Vega/）
 
 示例：
   vega delete <<< '{"path": "projects/Vega/old-note.md"}'
@@ -562,8 +566,8 @@ JSON 字段：
 移动或重命名条目/项目，从 stdin 读取 JSON。
 
 JSON 字段：
-  from  (必填)  源路径（相对于 data/）
-  to    (必填)  目标路径（相对于 data/）
+  from  (必填)  源路径
+  to    (必填)  目标路径
 
 条目路径带 .md 后缀，项目路径以 / 结尾。
 目标路径已存在时报错。
@@ -588,7 +592,7 @@ JSON 字段：
   vega list <<< '{"prefix": "user"}'""")
 
     # rebuild
-    sub.add_parser("rebuild", help="全量扫描", description="全量扫描 data/ 下所有 .md 文件")
+    sub.add_parser("rebuild", help="全量扫描", description="全量扫描知识库下所有 .md 文件并重建索引")
 
     # check
     sub.add_parser("check", help="知识库自检", description="检查知识库健康状态：frontmatter 格式、键一致性")
