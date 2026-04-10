@@ -302,10 +302,14 @@ def cmd_delete(args):
         print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
         sys.exit(1)
 
+    # 删除前读取内容，用于返回确认信息
+    with open(full_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
     delete_entry(full_path)
     remove(data_dir, path)
 
-    print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
+    print(json.dumps({"status": "ok", "path": path, "content": content}, ensure_ascii=False))
 
 
 def cmd_rebuild(args):
