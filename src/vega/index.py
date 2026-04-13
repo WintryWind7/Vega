@@ -73,10 +73,11 @@ def rebuild(data_dir: str) -> dict:
     return index
 
 
-def search(data_dir: str, query: str, limit: int = 50) -> list:
+def search(data_dir: str, query: str, limit: int = 50, mode: str = "and") -> list:
     """搜索索引，广泛召回。
 
     支持逗号分隔多关键词，按 path/title/tags/description 匹配。
+    mode: "and" 要求所有关键词都匹配，"or" 任一匹配即可。
     返回 score > 0 的结果，按相关度降序排列，最多 limit 条。
     """
     index = load_index(data_dir)
@@ -84,25 +85,29 @@ def search(data_dir: str, query: str, limit: int = 50) -> list:
     results = []
 
     for entry in index["entries"]:
-        score = 0
         path = entry["path"].lower()
         title = entry["title"].lower()
         desc = entry["description"].lower()
         tags = [t.lower() for t in entry.get("tags", [])]
 
+        score = 0
         for kw in keywords:
+            kw_score = 0
             if kw in title:
-                score += 3
+                kw_score += 3
             for tag in tags:
                 if kw in tag:
-                    score += 2
+                    kw_score += 2
             if kw in desc:
-                score += 1
+                kw_score += 1
             if kw in path:
-                score += 1
-
-        if score > 0:
-            results.append({**entry, "score": score})
+                kw_score += 1
+            if mode == "and" and kw_score == 0:
+                break
+            score += kw_score
+        else:
+            if score > 0:
+                results.append({**entry, "score": score})
 
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:limit]

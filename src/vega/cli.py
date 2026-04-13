@@ -74,8 +74,12 @@ def cmd_search(args):
     data = _read_stdin_json()
 
     query = data.get("query", "")
+    if not query:
+        print(json.dumps({"error": "query 字段必填"}, ensure_ascii=False))
+        sys.exit(1)
     limit = data.get("limit", 50)
     search_type = data.get("type", "file")
+    mode = data.get("mode", "and")
 
     if search_type == "project":
         keywords = [kw.strip().lower() for kw in query.split(",") if kw.strip()]
@@ -98,21 +102,25 @@ def cmd_search(args):
 
                     score = 0
                     for kw in keywords:
+                        kw_score = 0
                         if kw in proj_name:
-                            score += 3
+                            kw_score += 3
                         if kw in proj_remote:
-                            score += 2
+                            kw_score += 2
                         if kw in proj_desc:
-                            score += 1
-
-                    if score > 0:
-                        results.append({
-                            "name": meta.get("name", name),
-                            "remote": meta.get("remote", ""),
-                            "description": meta.get("description", ""),
-                            "path": f"projects/{name}/",
-                            "score": score,
-                        })
+                            kw_score += 1
+                        if mode == "and" and kw_score == 0:
+                            break
+                        score += kw_score
+                    else:
+                        if score > 0:
+                            results.append({
+                                "name": meta.get("name", name),
+                                "remote": meta.get("remote", ""),
+                                "description": meta.get("description", ""),
+                                "path": f"projects/{name}/",
+                                "score": score,
+                            })
                 except Exception:
                     continue
 
@@ -121,7 +129,9 @@ def cmd_search(args):
             return
 
         results.sort(key=lambda x: x["score"], reverse=True)
-        for i, proj in enumerate(results[:limit], 1):
+        shown = results[:limit]
+        print(f"共 {len(shown)} 个匹配")
+        for i, proj in enumerate(shown, 1):
             line = f"{i}. {proj['path']}"
             if proj["description"]:
                 line += f": {proj['description']}"
@@ -129,10 +139,11 @@ def cmd_search(args):
         return
 
     # 条目级搜索
-    results = search(data_dir, query, limit=limit)
+    results = search(data_dir, query, limit=limit, mode=mode)
     if not results:
         print("无匹配结果")
         return
+    print(f"共 {len(results)} 个匹配")
     for i, entry in enumerate(results, 1):
         print(f"{i}. {entry['path']}: {entry['description']}")
 
@@ -442,6 +453,7 @@ def cmd_list(args):
         print("无条目")
         return
 
+    print(f"共 {len(entries)} 个条目")
     for i, entry in enumerate(entries, 1):
         print(f"{i}. {entry['path']}: {entry['description']}")
 
@@ -493,13 +505,16 @@ JSON 字段：
 搜索知识库条目，从 stdin 读取 JSON。
 
 JSON 字段：
-  query    (必填)  搜索关键词，逗号分隔多关键词（OR 关系）
+  query    (必填)  搜索关键词，逗号分隔多关键词
+  mode     (可选)  匹配模式："and"（所有关键词都匹配）或 "or"（任一匹配），默认 "and"
   limit    (可选)  最大返回条数，默认 50
   type     (可选)  搜索类型："file"（条目）或 "project"（项目），默认 "file"
 
+结果按相关度降序排列（title 权重 3，tags 2，description/path 1）。
+
 示例：
-  vega search <<< '{"query": "editor", "type": "file"}'
-  vega search <<< '{"query": "Python, async", "type": "file", "limit": 20}'
+  vega search <<< '{"query": "editor"}'
+  vega search <<< '{"query": "Python, async", "mode": "or", "limit": 20}'
   vega search <<< '{"query": "Vega", "type": "project"}'""")
 
     # read
