@@ -58,7 +58,6 @@ run_one() {
     exit_code=0
     cat "$combined" | opencode run \
         --format json \
-        -m "bailian-coding-plan/glm-5" \
         2>"$output_dir/${prompt_name}-stderr.log" \
         > "$stream_file" || exit_code=$?
 
