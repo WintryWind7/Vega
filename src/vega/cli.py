@@ -165,6 +165,8 @@ def cmd_write(args):
     path = data.get("path", "")
     description = data.get("description", "")
     tags = data.get("tags", [])
+    if isinstance(tags, str):
+        tags = [tags]
     content = data.get("content", "")
 
     if not path:
