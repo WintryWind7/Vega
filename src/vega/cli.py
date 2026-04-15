@@ -24,16 +24,31 @@ def _load_config() -> str | None:
     return config.get("data_dir")
 
 
-def _read_stdin_json() -> dict:
-    """从 stdin 读取 JSON，空输入返回空字典。"""
+def _normalize_path(path: str) -> str:
+    """路径不以 .md 或 / 结尾时自动补 .md。空字符串原样返回。"""
+    if not path:
+        return path
+    if path.endswith('.md') or path.endswith('/'):
+        return path
+    return path + '.md'
+
+
+def _read_input(args) -> dict:
+    """从 stdin 读取 JSON，stdin 为空时取位置参数。两者都无则返回空字典。"""
     raw = sys.stdin.read()
-    if not raw.strip():
-        return {}
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
-        sys.exit(1)
+    if raw.strip():
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
+            sys.exit(1)
+    if hasattr(args, 'json') and args.json:
+        try:
+            return json.loads(args.json)
+        except json.JSONDecodeError as e:
+            print(json.dumps({"error": f"JSON 解析失败: {e}"}, ensure_ascii=False))
+            sys.exit(1)
+    return {}
 
 
 def _require_data_dir() -> str:
@@ -50,7 +65,7 @@ def _require_data_dir() -> str:
 
 def cmd_init(args):
     """初始化知识库，从 stdin 读取 JSON。"""
-    data = _read_stdin_json()
+    data = _read_input(args)
 
     data_path = data.get("data")
     if not data_path:
@@ -71,7 +86,7 @@ def cmd_init(args):
 def cmd_search(args):
     """搜索条目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
     query = data.get("query", "")
     if not query:
@@ -151,9 +166,9 @@ def cmd_search(args):
 def cmd_read(args):
     """读取条目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
-    path = data.get("path", "")
+    path = _normalize_path(data.get("path", ""))
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
@@ -171,9 +186,9 @@ def cmd_read(args):
 def cmd_write(args):
     """创建新条目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
-    path = data.get("path", "")
+    path = _normalize_path(data.get("path", ""))
     description = data.get("description", "")
     tags = data.get("tags", [])
     if isinstance(tags, str):
@@ -246,9 +261,9 @@ def cmd_write(args):
 def cmd_edit(args):
     """编辑已有条目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
-    path = data.get("path", "")
+    path = _normalize_path(data.get("path", ""))
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
@@ -304,9 +319,9 @@ def cmd_delete(args):
     import shutil
 
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
-    path = data.get("path", "").replace("\\", "/")
+    path = _normalize_path(data.get("path", "").replace("\\", "/"))
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
@@ -349,10 +364,10 @@ def cmd_delete(args):
 def cmd_move(args):
     """移动/重命名条目或项目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
-    from_path = data.get("from", "").replace("\\", "/")
-    to_path = data.get("to", "").replace("\\", "/")
+    from_path = _normalize_path(data.get("from", "").replace("\\", "/"))
+    to_path = _normalize_path(data.get("to", "").replace("\\", "/"))
 
     if not from_path or not to_path:
         print(json.dumps({"error": "from 和 to 字段必填"}, ensure_ascii=False))
@@ -440,7 +455,7 @@ def cmd_rebuild(args):
 def cmd_list(args):
     """列出指定目录下的条目，从 stdin 读取 JSON。"""
     data_dir = _require_data_dir()
-    data = _read_stdin_json()
+    data = _read_input(args)
 
     prefix = data.get("prefix", "").rstrip("/")
 
@@ -484,7 +499,7 @@ def main():
     sub.add_parser("help", help="显示帮助信息")
 
     # init
-    sub.add_parser("init", help="初始化知识库",
+    p = sub.add_parser("init", help="初始化知识库",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 初始化 Vega 知识库，从 stdin 读取 JSON。
@@ -497,9 +512,10 @@ JSON 字段：
   vega init <<< '{"data": "D:/Vega/data"}'
 
 注意：务必向用户确认 data 目录路径，不要自行决定。""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # search
-    sub.add_parser("search", help="搜索条目",
+    p = sub.add_parser("search", help="搜索条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 搜索知识库条目，从 stdin 读取 JSON。
@@ -516,9 +532,10 @@ JSON 字段：
   vega search <<< '{"query": "editor"}'
   vega search <<< '{"query": "Python, async", "mode": "or", "limit": 20}'
   vega search <<< '{"query": "Vega", "type": "project"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # read
-    sub.add_parser("read", help="读取条目",
+    p = sub.add_parser("read", help="读取条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 读取条目完整内容，从 stdin 读取 JSON。
@@ -528,9 +545,10 @@ JSON 字段：
 
 示例：
   vega read <<< '{"path": "user/editor-preferences.md"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # write
-    sub.add_parser("write", help="创建新条目",
+    p = sub.add_parser("write", help="创建新条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 创建新条目，从 stdin 读取 JSON。
@@ -546,9 +564,10 @@ JSON 字段：
 
 示例：
   vega write <<< '{"path": "projects/Vega/async.md", "description": "Python 异步编程", "tags": ["Python", "async", "并发"], "content": "# Python async\\n\\nasyncio 核心概念"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # edit
-    sub.add_parser("edit", help="编辑已有条目",
+    p = sub.add_parser("edit", help="编辑已有条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 编辑已有条目，从 stdin 读取 JSON。
@@ -562,9 +581,10 @@ JSON 字段：
 示例：
   vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧描述", "new": "新描述"}'
   vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧词", "new": "新词", "replace_all": true}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # delete
-    sub.add_parser("delete", help="删除条目或项目",
+    p = sub.add_parser("delete", help="删除条目或项目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 删除条目或项目，从 stdin 读取 JSON。
@@ -575,9 +595,10 @@ JSON 字段：
 示例：
   vega delete <<< '{"path": "projects/Vega/old-note.md"}'
   vega delete <<< '{"path": "projects/OldProject/"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # move
-    sub.add_parser("move", help="移动/重命名条目或项目",
+    p = sub.add_parser("move", help="移动/重命名条目或项目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 移动或重命名条目/项目，从 stdin 读取 JSON。
@@ -593,9 +614,10 @@ JSON 字段：
   vega move <<< '{"from": "projects/Vega/async.md", "to": "projects/Vega/concurrency.md"}'
   vega move <<< '{"from": "projects/Vega/", "to": "projects/Vega2/"}'
   vega move <<< '{"from": "user/note.md", "to": "projects/Vega/note.md"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # list
-    sub.add_parser("list", help="列出条目",
+    p = sub.add_parser("list", help="列出条目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""\
 列出条目，从 stdin 读取 JSON。
@@ -607,6 +629,7 @@ JSON 字段：
   vega list <<< '{}'
   vega list <<< '{"prefix": "projects/Vega"}'
   vega list <<< '{"prefix": "user"}'""")
+    p.add_argument("json", nargs="?", help="JSON 参数（也可通过 stdin 传入）")
 
     # rebuild
     sub.add_parser("rebuild", help="全量扫描", description="全量扫描知识库下所有 .md 文件并重建索引")
