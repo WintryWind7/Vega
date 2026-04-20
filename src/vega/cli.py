@@ -24,14 +24,6 @@ def _load_config() -> str | None:
     return config.get("data_dir")
 
 
-def _normalize_path(path: str) -> str:
-    """路径不以 .md 或 / 结尾时自动补 .md。空字符串原样返回。"""
-    if not path:
-        return path
-    if path.endswith('.md') or path.endswith('/'):
-        return path
-    return path + '.md'
-
 
 def _read_input(args) -> dict:
     """从 stdin 读取 JSON，stdin 为空时取位置参数。两者都无则返回空字典。"""
@@ -60,6 +52,50 @@ def _require_data_dir() -> str:
     print(json.dumps({
         "error": "未配置知识库路径，请先运行 vega init"
     }, ensure_ascii=False))
+    sys.exit(1)
+
+
+def _path_not_found(data_dir: str, path: str):
+    """路径不存在时输出智能建议并退出。"""
+    full_path = os.path.join(data_dir, path)
+
+    # 场景 1：路径是目录
+    if os.path.isdir(full_path):
+        entries = sorted(f for f in os.listdir(full_path) if not f.startswith('_'))
+        msg = f"路径是目录: {path}"
+        if entries:
+            msg += f"，目录内容: {', '.join(entries)}"
+        print(json.dumps({"error": msg}, ensure_ascii=False))
+        sys.exit(1)
+
+    # 场景 2 & 3：路径不存在，检查父目录
+    parent_full = os.path.dirname(full_path)
+    basename = os.path.basename(path)
+
+    if os.path.isdir(parent_full):
+        siblings = sorted(os.listdir(parent_full))
+
+        # 场景 2：前缀完全匹配（同词干不同扩展名）
+        stem_matches = [f for f in siblings if os.path.splitext(f)[0] == basename]
+        if stem_matches:
+            parent_rel = os.path.dirname(path)
+            suggested = (parent_rel + "/" + stem_matches[0]) if parent_rel else stem_matches[0]
+            print(json.dumps({
+                "error": f"文件不存在: {path}",
+                "hint": f"未找到 {path}，但找到了 {suggested}",
+            }, ensure_ascii=False))
+            sys.exit(1)
+
+        # 场景 3：无前缀匹配，列出目录内容
+        entries = [f for f in siblings if not f.startswith('_')]
+        if entries:
+            print(json.dumps({
+                "error": f"文件不存在: {path}",
+                "hint": f"该目录下的文件: {', '.join(entries)}",
+            }, ensure_ascii=False))
+            sys.exit(1)
+
+    print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
     sys.exit(1)
 
 
@@ -168,16 +204,15 @@ def cmd_read(args):
     data_dir = _require_data_dir()
     data = _read_input(args)
 
-    path = _normalize_path(data.get("path", ""))
+    path = data.get("path", "")
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
 
     full_path = os.path.join(data_dir, path)
 
-    if not os.path.exists(full_path):
-        print(json.dumps({"error": f"文件不存在: {path}"}, ensure_ascii=False))
-        sys.exit(1)
+    if not os.path.isfile(full_path):
+        _path_not_found(data_dir, path)
 
     with open(full_path, "r", encoding="utf-8") as f:
         print(f.read())
@@ -188,7 +223,7 @@ def cmd_write(args):
     data_dir = _require_data_dir()
     data = _read_input(args)
 
-    path = _normalize_path(data.get("path", ""))
+    path = data.get("path", "")
     description = data.get("description", "")
     tags = data.get("tags", [])
     if isinstance(tags, str):
@@ -263,7 +298,7 @@ def cmd_edit(args):
     data_dir = _require_data_dir()
     data = _read_input(args)
 
-    path = _normalize_path(data.get("path", ""))
+    path = data.get("path", "")
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
@@ -278,9 +313,8 @@ def cmd_edit(args):
 
     full_path = os.path.join(data_dir, path)
 
-    if not os.path.exists(full_path):
-        print(json.dumps({"error": f"条目不存在: {path}，请使用 vega write 创建"}, ensure_ascii=False))
-        sys.exit(1)
+    if not os.path.isfile(full_path):
+        _path_not_found(data_dir, path)
 
     with open(full_path, "r", encoding="utf-8") as f:
         text = f.read()
@@ -321,7 +355,7 @@ def cmd_delete(args):
     data_dir = _require_data_dir()
     data = _read_input(args)
 
-    path = _normalize_path(data.get("path", "").replace("\\", "/"))
+    path = data.get("path", "").replace("\\", "/")
     if not path:
         print(json.dumps({"error": "path 字段必填"}, ensure_ascii=False))
         sys.exit(1)
@@ -329,8 +363,7 @@ def cmd_delete(args):
     full_path = os.path.join(data_dir, path.rstrip("/"))
 
     if not os.path.exists(full_path):
-        print(json.dumps({"error": f"路径不存在: {path}"}, ensure_ascii=False))
-        sys.exit(1)
+        _path_not_found(data_dir, path)
 
     # 项目级删除（实际路径为目录）
     if os.path.isdir(full_path):
@@ -366,8 +399,8 @@ def cmd_move(args):
     data_dir = _require_data_dir()
     data = _read_input(args)
 
-    from_path = _normalize_path(data.get("from", "").replace("\\", "/"))
-    to_path = _normalize_path(data.get("to", "").replace("\\", "/"))
+    from_path = data.get("from", "").replace("\\", "/")
+    to_path = data.get("to", "").replace("\\", "/")
 
     if not from_path or not to_path:
         print(json.dumps({"error": "from 和 to 字段必填"}, ensure_ascii=False))
@@ -381,8 +414,7 @@ def cmd_move(args):
     dst_full = os.path.join(data_dir, to_path.rstrip("/"))
 
     if not os.path.exists(src_full):
-        print(json.dumps({"error": f"路径不存在: {from_path}"}, ensure_ascii=False))
-        sys.exit(1)
+        _path_not_found(data_dir, from_path)
 
     if os.path.exists(dst_full):
         print(json.dumps({"error": f"目标路径已存在: {to_path}"}, ensure_ascii=False))
