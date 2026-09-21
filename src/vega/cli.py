@@ -622,7 +622,10 @@ JSON 字段：
 删除条目或项目，从 stdin 读取 JSON。
 
 JSON 字段：
-  path  (必填)  条目路径（如 projects/Vega/note.md）或项目路径（以 / 结尾，如 projects/Vega/）
+  path  (必填)  条目路径（如 projects/Vega/note.md）或项目路径（如 projects/Vega/）
+
+路径末尾的 / 可省略，是条目还是项目由实际是文件还是目录判断。
+删除条目时返回被删条目的完整内容。
 
 示例：
   vega delete <<< '{"path": "projects/Vega/old-note.md"}'
@@ -639,8 +642,9 @@ JSON 字段：
   from  (必填)  源路径
   to    (必填)  目标路径
 
-条目路径带 .md 后缀，项目路径以 / 结尾。
+条目路径带 .md 后缀，项目路径末尾的 / 可省略，类型由实际是文件还是目录判断。
 目标路径已存在时报错。
+项目重命名会同步更新 _index.md 的 name 和索引中所有受影响条目的路径。
 
 示例：
   vega move <<< '{"from": "projects/Vega/async.md", "to": "projects/Vega/concurrency.md"}'
