@@ -55,7 +55,7 @@ write、edit、delete 同步维护索引，search 从索引读取。详见[索�
 - 命令简洁直观，AI 看命令名就能理解用途
 - write 创建新条目，edit 编辑已有条目，职责分离
 - edit 使用精确字符串替换（old/new/replace_all），与 AI 内置 Edit 工具设计思路一致
-- search 即时扫描所有文件，无持久索引，无一致性问题
+- delete 和 move 不靠参数区分条目与项目，由路径实际是文件还是目录决定，路径末尾的 `/` 只是书写习惯
 - 新建条目时 description 和 tags 必填
 - search 广泛召回，返回最多 50 条候选结果，精确筛选交给 AI。多关键词默认 AND 关系（`mode: "or"` 切换为 OR），子串匹配
 - write 同路径已存在时报错，AI 应使用 edit 修改

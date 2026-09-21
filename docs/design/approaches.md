@@ -18,7 +18,9 @@
 
 考虑过文件直接扫描、轻量索引、SQLite FTS5。
 
-~~选择 JSON 索引方案：维护一个索引文件存储所有条目的元数据摘要（path、title、description、tags），写入和删除时自动更新索引，检索时先查索引再读正文。提供全量重建索引的能力。详见 [index.md](index.md)。
+选择 JSON 索引方案：维护一个索引文件存储所有条目的元数据摘要（path、title、description、tags），写入和删除时自动更新索引，检索时先查索引再读正文。提供全量重建索引的能力。
+
+中途曾改为即时扫描（去掉索引），实测后认为加回更合理。详见 [index.md](index.md)。
 
 ## 备份方案（等待实现）
 
@@ -34,10 +36,8 @@
 
 ## 自动同步方案
 
-~~Vega 不需要后台服务或端口占用。写操作触发同步：~~
+Vega 不需要后台服务或端口占用。写操作触发同步：
 
-~~- write、edit、delete 三个命令在执行时自动更新索引并触发 git commit~~
-~~- AI 无需手动 rebuild 或 sync，索引始终与文件保持一致~~
-~~- search 直接查索引，不需要扫描文件~~
-
-**部分恢复**：write/edit/delete 自动更新索引已恢复。git commit 同步尚未实现。
+- write、edit、delete 三个命令在执行时自动更新索引，AI 无需手动 rebuild
+- search 直接查索引，不需要扫描文件
+- 早期的设计还包括写操作自动触发 git commit（与备份方案配合），该部分未实现

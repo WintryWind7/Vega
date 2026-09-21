@@ -15,11 +15,12 @@ vega list                    # 无需传 JSON，直接列出全部
 ```
 
 - `vega init` — 初始化知识库。`{"data": "路径"}`（必填）
-- `vega search` — 搜索条目。`{"query": "关键词，逗号分隔"}`（必填），`mode`（可选，默认 "and"，可选 "or"），`limit`（可选，默认 50），`project`（可选，默认 false，搜索项目而非条目）
+- `vega search` — 搜索条目。`{"query": "关键词，逗号分隔"}`（必填），`mode`（可选，默认 "and"，可选 "or"），`limit`（可选，默认 50），`type`（可选，默认 "file"，可选 "project" 搜索项目而非条目）
 - `vega read` — 读取条目，输出 md 原文。`{"path": "路径"}`（必填）
 - `vega write` — 创建新条目。`{"path", "description", "tags", "content"}`（均必填）。同路径已存在时报错，用 edit 修改。写入新项目时自动创建 `_index.md`
 - `vega edit` — 编辑已有条目。`{"path", "old", "new"}`（必填），`replace_all`（可选，默认 false）
-- `vega delete` — 删除条目。`{"path": "路径"}`（必填）
+- `vega delete` — 删除条目（路径带 `.md`）或整个项目（路径以 `/` 结尾）。`{"path": "路径"}`（必填）
+- `vega move` — 移动/重命名条目或项目。`{"from", "to"}`（均必填），目标已存在时报错
 - `vega list` — 列出条目。`{"prefix": "路径前缀"}`（可选）。可不传 JSON，直接 `vega list`
 - `vega check` — 知识库自检。可不传 JSON
 - `vega rebuild` — 全量扫描。可不传 JSON

@@ -44,21 +44,21 @@ vega init <<< '{"data": "~/vega-data"}'
 
 ### vega search
 
-搜索条目，逗号分隔多关键词，默认 AND 关系（所有关键词都匹配才返回），`"mode": "or"` 切换为任一匹配。即时扫描所有 .md 文件，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，评分降序排列。
+搜索条目，逗号分隔多关键词，默认 AND 关系（所有关键词都匹配才返回），`"mode": "or"` 切换为任一匹配。从索引读取，按标题（权重 3）、标签（权重 2）、描述和路径（权重 1）匹配，不搜正文。子串匹配，评分降序排列。
 
-加 `"project": true` 时模糊搜索项目名而非条目，不确定项目名时使用。匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
+`"type": "project"` 时模糊搜索项目名而非条目，不确定项目名时使用。匹配 `_index.md` 中的 name（权重 3）、remote（权重 2）、description（权重 1）。
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | query | 是 | 搜索关键词，逗号分隔多关键词 |
 | mode | 否 | 匹配模式，"and"（默认）或 "or" |
 | limit | 否 | 最大返回条数，默认 50 |
-| project | 否 | 搜索项目而非条目，默认 false |
+| type | 否 | 搜索类型，"file"（条目，默认）或 "project"（项目） |
 
 ```bash
 vega search <<< '{"query": "editor"}'
 vega search <<< '{"query": "Python, async", "limit": 20}'
-vega search <<< '{"query": "Vega", "project": true}'
+vega search <<< '{"query": "Vega", "type": "project"}'
 ```
 
 ### vega read
@@ -109,14 +109,30 @@ vega edit <<< '{"path": "projects/Vega/async.md", "old": "旧词", "new": "新�
 
 ### vega delete
 
-删除条目。
+删除条目或整个项目。删除条目时返回被删条目的完整内容（便于确认删对了）；删除项目时返回 `entries_deleted` 计数。
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
-| path | 是 | 条目路径（相对于 data/，需带 .md 后缀） |
+| path | 是 | 条目路径（需带 .md 后缀）或项目路径 |
 
 ```bash
 vega delete <<< '{"path": "projects/Vega/old-note.md"}'
+vega delete <<< '{"path": "projects/OldProject/"}'
+```
+
+### vega move
+
+移动或重命名条目/项目。目标路径已存在时报错。项目重命名会同步更新 `_index.md` 中的 name 和索引中所有受影响条目的路径。
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| from | 是 | 源路径 |
+| to | 是 | 目标路径 |
+
+```bash
+vega move <<< '{"from": "projects/Vega/async.md", "to": "projects/Vega/concurrency.md"}'
+vega move <<< '{"from": "projects/Vega/", "to": "projects/Vega2/"}'
+vega move <<< '{"from": "user/note.md", "to": "projects/Vega/note.md"}'
 ```
 
 ### vega list
@@ -153,14 +169,16 @@ vega rebuild
 
 ## 备注
 
-人可以直接编辑 Markdown 文件，不影响使用。Vega 不维护索引，所有操作即时扫描文件。
+人可以直接编辑 Markdown 文件，不影响使用。Vega 维护 `data/index.json` 持久索引，write/edit/delete 会自动同步；人直接改过文件后运行 `vega rebuild` 重建即可。`vega check` 可校验索引与实际文件是否一致。
 
 ## 知识库结构
 
 ```
 data/
+  index.json       # 条目索引，由 CLI 自动维护
   projects/        # AI 存储的项目记忆
     <项目名>/
+      _index.md    # 项目元信息（name、remote、description），不参与索引
       *.md
   user/            # 用户的个人偏好
     *.md
